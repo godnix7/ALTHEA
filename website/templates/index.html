@@ -12,8 +12,10 @@
       "email": current_user.email
     },
     "activeSessionId": active_session.id if active_session else None,
-    "helpEmail": help_email or 'nischaykademane@gmail.com'
+    "helpEmail": help_email or 'nischaykademane@gmail.com',
+    "aiSettings": ai_settings
   } | tojson }};
+
 </script>
 <style>
   :root{
@@ -1531,6 +1533,10 @@
           <span class="settings-nav-item-icon">👤</span>
           <span>Account</span>
         </button>
+        <button class="settings-nav-item" data-section="ai-agents">
+          <span class="settings-nav-item-icon">🤖</span>
+          <span>AI Agents</span>
+        </button>
       </nav>
     </div>
     <div class="settings-content">
@@ -1765,6 +1771,52 @@
             <span id="accountEmailDisplay" style="color:#fff;">sumisuzi2005@gmail.com</span>
           </div>
         </div>
+      </div>
+
+      <div class="settings-section-content" id="settingsAiAgents" style="display:none;">
+        <h2>AI Agent Settings</h2>
+        <p class="settings-section-desc">Manage your AI providers and API keys. These keys are stored securely and used only for your requests.</p>
+        
+        <form id="aiSettingsForm">
+          <div class="settings-section">
+            <div class="settings-row">
+              <div class="settings-row-label">
+                <div class="settings-row-label-title">Active AI Provider</div>
+                <div class="settings-row-label-desc">Choose which AI model to use for chat.</div>
+              </div>
+              <div class="settings-row-control">
+                <select class="settings-select" id="activeAiProviderSelect" name="active_ai_provider">
+                  <option value="ollama">Ollama (Local/Free)</option>
+                  <option value="openai">OpenAI (GPT-4o/3.5)</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="anthropic">Anthropic Claude</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">API Keys</h3>
+            
+            <div class="input-group" style="margin-bottom:16px;">
+              <label for="openai_key">OpenAI API Key</label>
+              <input type="password" class="settings-input" id="openai_key" name="openai_api_key" placeholder="sk-...">
+            </div>
+
+            <div class="input-group" style="margin-bottom:16px;">
+              <label for="gemini_key">Gemini API Key</label>
+              <input type="password" class="settings-input" id="gemini_key" name="gemini_api_key" placeholder="AIza...">
+            </div>
+
+            <div class="input-group" style="margin-bottom:16px;">
+              <label for="anthropic_key">Anthropic API Key</label>
+              <input type="password" class="settings-input" id="anthropic_key" name="anthropic_api_key" placeholder="sk-ant-...">
+            </div>
+
+            <div id="aiSettingsStatus" style="font-size:13px; margin-top:8px;"></div>
+            <button type="submit" class="btn primary" style="margin-top:16px;">Save AI Settings</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -2720,6 +2772,25 @@
     messageInput.style.height = '20px';
     selectedFiles = [];
     displayFilePreview();
+
+    // Check if API key is missing for the selected provider
+    const ai = appContext.aiSettings || {};
+    const provider = ai.active_provider || 'ollama';
+    let missingKey = false;
+    
+    if(provider === 'openai' && !ai.has_openai) missingKey = true;
+    if(provider === 'gemini' && !ai.has_gemini) missingKey = true;
+    if(provider === 'anthropic' && !ai.has_anthropic) missingKey = true;
+
+    if(missingKey){
+      appendMessage(`Please provide your ${provider.toUpperCase()} API key in the settings to use this provider.`, 'bot');
+      setTimeout(() => {
+        openSettingsModal();
+        showSettingsSection('ai-agents');
+      }, 1000);
+      return;
+    }
+
     await ensureActiveSession();
     
     const typing = document.createElement('div'); 
@@ -3225,6 +3296,54 @@
   const languageSelect = document.getElementById('languageSelect');
   const spokenLanguageSelect = document.getElementById('spokenLanguageSelect');
   const voiceSelect = document.getElementById('voiceSelect');
+
+  // AI Agent Settings Functionality
+  const aiSettingsForm = document.getElementById('aiSettingsForm');
+  const activeAiProviderSelect = document.getElementById('activeAiProviderSelect');
+  const aiSettingsStatus = document.getElementById('aiSettingsStatus');
+
+  // Initialize AI settings from APP_CONTEXT
+  if(appContext.aiSettings){
+    activeAiProviderSelect.value = appContext.aiSettings.active_provider || 'ollama';
+    // We don't show the actual keys for security, but we could show placeholders if they exist
+    if(appContext.aiSettings.has_openai) document.getElementById('openai_key').placeholder = '••••••••••••••••';
+    if(appContext.aiSettings.has_gemini) document.getElementById('gemini_key').placeholder = '••••••••••••••••';
+    if(appContext.aiSettings.has_anthropic) document.getElementById('anthropic_key').placeholder = '••••••••••••••••';
+  }
+
+  aiSettingsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    aiSettingsStatus.textContent = 'Saving...';
+    aiSettingsStatus.style.color = '#fff';
+    
+    const formData = new FormData(aiSettingsForm);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+      const response = await fetch('/settings/update_ai_keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if(response.ok){
+        aiSettingsStatus.textContent = 'Settings saved successfully!';
+        aiSettingsStatus.style.color = '#4a8a5c';
+        // Update local context
+        appContext.aiSettings.active_provider = data.active_ai_provider;
+        if(data.openai_api_key) appContext.aiSettings.has_openai = true;
+        if(data.gemini_api_key) appContext.aiSettings.has_gemini = true;
+        if(data.anthropic_api_key) appContext.aiSettings.has_anthropic = true;
+      } else {
+        const err = await response.json();
+        aiSettingsStatus.textContent = 'Error: ' + (err.error || 'Failed to save');
+        aiSettingsStatus.style.color = '#d35454';
+      }
+    } catch (err) {
+      aiSettingsStatus.textContent = 'Network error occurred.';
+      aiSettingsStatus.style.color = '#d35454';
+    }
+  });
 
   // Function to apply appearance theme
   function applyAppearance(theme){

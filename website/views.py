@@ -112,7 +112,14 @@ def chat():
         gad9_result=latest_result,
         active_session=active_session,
         help_email=current_app.config.get('HELP_EMAIL'),
+        ai_settings={
+            'active_provider': current_user.active_ai_provider,
+            'has_openai': bool(current_user.openai_api_key),
+            'has_gemini': bool(current_user.gemini_api_key),
+            'has_anthropic': bool(current_user.anthropic_api_key)
+        }
     )
+
 
 
 @views.route('/chat/messages', methods=['GET', 'POST'])

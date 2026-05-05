@@ -19,12 +19,19 @@ def create_app():
     app.config['ADMIN_EMAILS'] = [
         email.strip().lower() for email in admin_emails.split(',') if email.strip()
     ]
-    os.makedirs(app.instance_path, exist_ok=True)
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(app.instance_path, DB_NAME)}"
+    # Vercel compatibility: use /tmp for SQLite as the rest of the filesystem is read-only
+    if os.environ.get('VERCEL'):
+        base_dir = '/tmp'
+    else:
+        base_dir = app.instance_path
+        os.makedirs(base_dir, exist_ok=True)
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(base_dir, DB_NAME)}"
     app.config['SQLALCHEMY_BINDS'] = {
-        'users': f"sqlite:///{os.path.join(app.instance_path, USERS_DB_NAME)}"
+        'users': f"sqlite:///{os.path.join(base_dir, USERS_DB_NAME)}"
     }
     db.init_app(app)
+
 
     from .views import views
     from .auth import auth

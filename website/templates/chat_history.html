@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Chat History{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Chat History</h2>
+    <p class="text-muted mb-0">
+      Every time you open Althea we start a fresh session. Use this page to revisit earlier conversations.
+    </p>
+  </div>
+  <a href="{{ url_for('views.chat') }}" class="btn btn-primary">Start New Chat</a>
+</div>
+
+{% if sessions %}
+<div class="table-responsive">
+  <table class="table table-striped table-hover">
+    <thead class="thead-dark">
+      <tr>
+        <th scope="col">Title</th>
+        <th scope="col">Created</th>
+        <th scope="col">Last active</th>
+        <th scope="col">Preview</th>
+        <th scope="col" class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for session in sessions %}
+      <tr>
+        <td>{{ session.title }}</td>
+        <td>{{ session.created_at.strftime('%b %d, %Y • %I:%M %p') if session.created_at }}</td>
+        <td>{{ session.updated_at.strftime('%b %d, %Y • %I:%M %p') if session.updated_at }}</td>
+        <td>{{ session.last_preview or 'No messages yet' }}</td>
+        <td class="text-right">
+          <a href="{{ url_for('views.chat_history_detail', session_id=session.id) }}" class="btn btn-sm btn-outline-secondary">
+            View conversation
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+  You have not saved any conversations yet. Head back to <a href="{{ url_for('views.chat') }}">Althea</a> to start a new one.
+</div>
+{% endif %}
+{% endblock %}
+

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Althea — Mentors</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;background:#F0F6EB;color:#0d2012}
+    .wrap{max-width:1200px;margin:0 auto;padding:32px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .brand{font-weight:700}
+    .nav a{color:#2b4631;text-decoration:none;font-size:14px;margin-left:16px}
+    .card{background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.08);padding:24px;border:1px solid rgba(0,0,0,0.06)}
+    .badge{display:inline-block;background:#fff;color:#3b4b36;border:1px solid #e6e6e6;border-radius:999px;padding:6px 10px;font-size:13px}
+    h1{font-size:36px;line-height:1.2;margin-top:16px}
+    .lead{margin-top:12px;color:#606060;font-size:16px;max-width:680px}
+    .actions{margin-top:18px;display:flex;gap:12px;flex-wrap:wrap}
+    .btn-primary{background:#14220f;color:#fff;border:none;border-radius:999px;padding:12px 18px;font-weight:600;cursor:pointer}
+    .btn-secondary{background:#fff;color:#333;border:1px solid #e6e6e6;border-radius:999px;padding:12px 18px;font-weight:500;cursor:pointer}
+    .grid{display:grid;grid-template-columns:repeat(1,1fr);gap:14px;margin-top:20px}
+    @media(min-width:768px){.grid{grid-template-columns:repeat(2,1fr)}}
+    .mentor{display:flex;gap:14px;align-items:center;background:#fbfdf9;border:1px solid #eef6ea;border-radius:14px;padding:14px}
+    .avatar{width:96px;height:96px;border-radius:10px;background:#dfeed6;color:#2f5e20;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0}
+    .name{font-size:18px;font-weight:700}
+    .role{font-size:13px;color:#5b5b5b;margin-top:4px}
+    .email{margin-top:6px;font-size:13px;color:#2f5e20;font-weight:600}
+    .footer-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:18px}
+    @media(min-width:768px){.footer-grid{grid-template-columns:1fr 1fr}}
+    .footer-card{background:#f5f7f3;border:1px solid #ecefe8;border-radius:14px;padding:16px}
+    .footer-card .title{font-weight:700;margin-bottom:4px}
+    .footer-card .meta{font-size:13px;color:#333}
+    .footer-card .contact{font-size:13px;color:#2f5e20;margin-top:6px}
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      var freeCall = document.getElementById('startCall');
+      var scheduleBtn = document.getElementById('scheduleLater');
+      if(freeCall){
+        freeCall.addEventListener('click', function(){ alert('We will connect you to a mentor shortly. First 10 minutes are free.'); });
+      }
+      if(scheduleBtn){
+        scheduleBtn.addEventListener('click', function(){ alert('A scheduler will open soon.'); });
+      }
+    });
+  </script>
+  </head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">ALTHEA</div>
+      <div class="nav">
+        <a href="{{ url_for('views.overview') }}">Explore</a>
+        <a href="{{ url_for('views.chat') }}">Chat</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="badge">Live human guidance</div>
+      <h1>Connect with a mentor, breathe easier in minutes.</h1>
+      <p class="lead">Get on a calm voice call with an Althea mentor any time you need a real human presence. Your first 10 minutes are always on us — stay longer only if it feels supportive.</p>
+      <div class="actions">
+        <button id="startCall" class="btn-primary">Start a free 10-min call</button>
+        <button id="scheduleLater" class="btn-secondary">Schedule for later</button>
+      </div>
+
+      <div class="grid">
+        <div class="mentor">
+          <div class="avatar">Photo</div>
+          <div>
+            <div class="name">Dr. Aisha Verma</div>
+            <div class="role">Clinical Psychologist</div>
+            <div class="email">aisha.verma@althea.care</div>
+          </div>
+        </div>
+        <div class="mentor">
+          <div class="avatar">Photo</div>
+          <div>
+            <div class="name">Rohan Sen</div>
+            <div class="role">Trauma & Stress Mentor</div>
+            <div class="email">rohan.sen@althea.care</div>
+          </div>
+        </div>
+        <div class="mentor">
+          <div class="avatar">Photo</div>
+          <div>
+            <div class="name">Meera Khanna</div>
+            <div class="role">Mindfulness & Wellness Coach</div>
+            <div class="email">meera.khanna@althea.care</div>
+          </div>
+        </div>
+        <div class="mentor">
+          <div class="avatar">Photo</div>
+          <div>
+            <div class="name">Dr. Kabir Malhotra</div>
+            <div class="role">Emotional Support Mentor</div>
+            <div class="email">kabir.malhotra@althea.care</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-grid">
+      <div class="footer-card">
+        <div class="title">Point of contact</div>
+        <div class="meta">Meera Anand — Lead Mentor</div>
+        <div class="contact">meera@althea.care • +91 98865 22103</div>
+      </div>
+      <div class="footer-card">
+        <div class="title">Program director</div>
+        <div class="meta">Lucas Grant — Partnerships</div>
+        <div class="contact">lucas@althea.care • +1 (415) 938-7720</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+
+

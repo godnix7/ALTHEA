@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Althea — AI Mental Health Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #F8F8F8 0%, #FFFFFF 100%);
+            min-height: 100vh;
+            color: #1a1a1a;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            font-weight: 300;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: -0.5px;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #1a1a1a;
+            font-size: 15px;
+            font-weight: 400;
+            transition: opacity 0.2s ease;
+        }
+
+        nav a:hover {
+            opacity: 0.7;
+        }
+
+        .nav-dropdown {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .nav-dropdown svg {
+            width: 12px;
+            height: 12px;
+            opacity: 0.6;
+        }
+
+        .mentor-link {
+            background: #1a1a1a;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        .mentor-link:hover {
+            background: #333;
+            transform: translateY(-1px);
+        }
+
+        /* Main Content */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 40px 80px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .content-left {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 700;
+            line-height: 1.1;
+            color: #1a1a1a;
+            font-family: Georgia, 'Times New Roman', serif;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            line-height: 1.6;
+            margin-top: 8px;
+        }
+
+        .security-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 8px;
+            align-items: center;
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #4a9b5f;
+            font-weight: 500;
+        }
+
+        .security-badge svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .mentor-highlight {
+            margin-top: 32px;
+            padding: 18px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(26, 26, 26, 0.1);
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .mentor-highlight span {
+            font-size: 15px;
+            color: #444;
+        }
+
+        .mentor-highlight a {
+            color: #1a1a1a;
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            padding-bottom: 2px;
+        }
+
+        .mentor-highlight a:hover {
+            border-color: #1a1a1a;
+        }
+
+        .btn-primary {
+            background: #1a1a1a;
+            color: white;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.2s ease, transform 0.1s ease;
+            display: inline-block;
+        }
+
+        .btn-primary:hover {
+            background: #333;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1a1a1a;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            border: 1px solid #1a1a1a;
+            transition: background 0.2s ease, transform 0.1s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f5;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Chat Preview */
+        .chat-preview {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chat-thread {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .chat-bubble {
+            padding: 16px 20px;
+            border-radius: 14px;
+            max-width: 85%;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #1a1a1a;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        }
+
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: #d8f0ff;
+            border-top-right-radius: 4px;
+        }
+
+        .chat-bubble.ai {
+            align-self: flex-start;
+            background: white;
+            border-top-left-radius: 4px;
+            position: relative;
+        }
+
+        .chat-bubble.ai::before {
+            content: "Althea";
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c7c7f;
+            position: absolute;
+            top: -22px;
+            left: 0;
+        }
+
+        .live-line {
+            display: inline-flex;
+            align-items: flex-end;
+            gap: 6px;
+            margin-top: 8px;
+            font-weight: 500;
+            color: #2b4631;
+        }
+
+        .caret {
+            width: 2px;
+            height: 16px;
+            background: #2b4631;
+            animation: blink 1s steps(2, start) infinite;
+        }
+
+        @keyframes blink {
+            to {
+                visibility: hidden;
+            }
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            color: #6c7c7f;
+            font-size: 13px;
+        }
+
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6c7c7f;
+            opacity: 0.4;
+            animation: bounce 1s infinite;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* Info Sections */
+        .sections-wrap {
+            max-width: 1200px;
+            margin: 0 auto 80px;
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+
+        .info-section {
+            background: rgba(255,255,255,0.92);
+            border-radius: 20px;
+            border: 1px solid rgba(26,26,26,0.08);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.08);
+            padding: 32px;
+        }
+
+        .info-section h2 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #1a1a1a;
+        }
+
+        .info-section p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .who-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .who-card {
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(26,26,26,0.08);
+            background: #f6fbff;
+        }
+
+        .who-card h3 {
+            margin-bottom: 8px;
+            font-size: 16px;
+            color: #1a1a1a;
+        }
+
+        .blog-list {
+            display: grid;
+            gap: 16px;
+        }
+
+        .blog-item {
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(26,26,26,0.08);
+            background: #fff;
+        }
+
+        .blog-meta {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .blog-item strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #1a1a1a;
+        }
+
+        .help-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .help-links a {
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(26,26,26,0.12);
+            color: #1a1a1a;
+            font-weight: 500;
+            transition: border 0.2s ease, background 0.2s ease;
+        }
+
+        .help-links a:hover {
+            border-color: #1a1a1a;
+            background: rgba(26,26,26,0.04);
+        }
+
+        /* Footer Section */
+        .trusted-section {
+            text-align: center;
+            padding: 60px 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .trusted-text {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 24px;
+        }
+
+        /* Social Links */
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 40px;
+        }
+
+        .social-link {
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .social-link:hover {
+            color: #1a1a1a;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .chat-preview {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 16px 24px;
+                flex-wrap: wrap;
+            }
+
+            nav {
+                gap: 20px;
+                font-size: 14px;
+            }
+
+            .main-container {
+                padding: 40px 24px 60px;
+            }
+
+            h1 {
+                font-size: 36px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo-section">
+            <span class="logo-icon"></span>
+            <span class="logo-text">Althea</span>
+        </div>
+        <nav>
+            <div class="nav-dropdown">
+                <a href="#who-we-serve">Who We Serve</a>
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <a href="#blog">Blog</a>
+            <a href="#about">About Us</a>
+            <a href="{{ url_for('views.help_page') }}" data-app-link="{{ url_for('views.help_page') }}" data-fallback-link="help.html">Help</a>
+            <a href="{{ url_for('views.mentor') }}" class="mentor-link" data-fallback-link="mentor.html">Talk to a mentor</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="content-left">
+            <h1>AI mental health chatbot</h1>
+            <p class="subtitle"> 100% anonymous, safe and secure, available 24/7.</p>
+            <div class="security-features">
+                <div class="security-badge">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                        <path d="M8 1L3 3.5V7.5C3 10.5 5.5 13 8 14C10.5 13 13 10.5 13 7.5V3.5L8 1Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6 8L7.5 9.5L10 7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>End-to-end encrypted</span>
+                </div>
+                <div class="security-badge">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                        <path d="M8 1L3 3.5V7.5C3 10.5 5.5 13 8 14C10.5 13 13 10.5 13 7.5V3.5L8 1Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6 8L7.5 9.5L10 7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>HIPAA compliant</span>
+                </div>
+                <div class="security-badge">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                        <path d="M8 1L3 3.5V7.5C3 10.5 5.5 13 8 14C10.5 13 13 10.5 13 7.5V3.5L8 1Z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6 8L7.5 9.5L10 7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Your data is private</span>
+                </div>
+            </div>
+            <div class="cta-buttons">
+                <a href="{{ url_for('views.chat') }}" class="btn-primary">Try Now</a>
+                <a href="{{ url_for('views.mentor') }}" class="btn-secondary" data-fallback-link="mentor.html">
+                    Live Mentor
+                    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor">
+                        <path d="M4 10L10 4M10 4H4M10 4V10" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+            </div>
+            <div class="mentor-highlight">
+                <span>Need a human voice? Enjoy a free 10-minute mentor call and extend if it helps.</span>
+                <a href="{{ url_for('views.mentor') }}" data-fallback-link="mentor.html">Explore mentor sessions →</a>
+            </div>
+        </div>
+
+        <div class="chat-preview">
+            <div class="chat-thread">
+                <div class="chat-bubble user">
+                    I'm so overwhelmed trying to get everything done, and every new task feels like a punishment. I no longer have any motivation.
+                </div>
+                <div class="chat-bubble ai">
+                    I hear how heavy this feels. Let's take a gentle pause together so your body can catch up with your mind.
+                    <div class="live-line">
+                        Starting a 60-second grounding scan
+                        <span class="caret"></span>
+                    </div>
+                    <div class="typing-indicator">
+                        <div class="typing-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        Althea is creating your next step...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sections-wrap">
+        <section class="info-section" id="who-we-serve">
+            <h2>Who we serve</h2>
+            <p>Althea blends AI check-ins with human mentors so organizations can extend compassionate care beyond business hours.</p>
+            <div class="who-grid">
+                <div class="who-card">
+                    <h3>Universities</h3>
+                    <p>Always-on support for students, plus escalation workflows that plug into campus counseling teams.</p>
+                </div>
+                <div class="who-card">
+                    <h3>People leaders</h3>
+                    <p>Give employees a discreet outlet for stress logs, coping exercises, and optional mentor calls.</p>
+                </div>
+                <div class="who-card">
+                    <h3>Clinicians & coaches</h3>
+                    <p>Automate between-session nudges and get structured reflections to personalize the next visit.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="info-section" id="blog">
+            <h2>From the blog</h2>
+            <div class="blog-list">
+                <article class="blog-item">
+                    <div class="blog-meta">Nov 18, 2025 • Journey</div>
+                    <strong>First-build jitters: how four students shipped Althea</strong>
+                    <p>We were nervous. It was our first time building something end‑to‑end and every decision felt massive. We sketched layouts, mapped flows, and researched APIs for weeks before choosing an approach that fit our budget and values. Balancing classes with late‑night sprints was rough—some days we met between lectures, other nights we barely slept. That pressure taught us discipline and focus. The goal stayed simple: a genuine, dependable space to talk that works even when other apps stumble.</p>
+                </article>
+                <article class="blog-item">
+                    <div class="blog-meta">Nov 12, 2025 • Engineering</div>
+                    <strong>Choosing LLaMA: practical AI for a student budget</strong>
+                    <p>We compared popular APIs and open models on cost, latency, safety, and control. LLaMA gave us the flexibility to tune prompts, add guardrails, and keep costs predictable. We layered context windows for journaling, added refusal rules for unsafe requests, and wrote evaluators to catch brittle replies. The result isn’t flashy; it’s careful. With transparent behavior and well‑scoped prompts, the bot listens first, responds gently, and escalates when signals cross our thresholds.</p>
+                </article>
+                <article class="blog-item">
+                    <div class="blog-meta">Nov 10, 2025 • Design</div>
+                    <strong>Colors that calm: our search for a soothing palette</strong>
+                    <p>We wanted the interface to make people feel safe, not hyped. We tested palettes against accessibility guidelines, checked contrast ratios, and read research on color psychology. Professor Nithin, who holds a PhD in psychology, helped us think about arousal, attention, and comfort. We landed on soft blues and warm neutrals, kept motion subtle, and used generous spacing to reduce cognitive load. The design fades into the background so the conversation can take center stage.</p>
+                </article>
+                <article class="blog-item">
+                    <div class="blog-meta">Nov 08, 2025 • Journey</div>
+                    <strong>Building under pressure: classes, labs, and long nights</strong>
+                    <p>We squeezed work into every spare hour—between labs, after exams, and during weekends. Some days we skipped lunch; a few times we even skipped class to unblock hard problems and align on architecture. Those sleepless nights taught us to plan weekly sprints, write crisp tasks, and check in honestly when we slipped. It wasn’t pretty, but it was real. That rhythm kept us moving and reminded us why we were doing this in the first place.</p>
+                </article>
+                <article class="blog-item">
+                    <div class="blog-meta">Nov 05, 2025 • Product</div>
+                    <strong>Better than “almost right”: learning from existing apps</strong>
+                    <p>We studied apps that promised support but stumbled on reliability, privacy, or tone. Some handled panic poorly; others buried settings or made escalation confusing. We wrote our own rules: clear copy, predictable paths, truthful responses, and a real escalation option when risk appears. The benchmark wasn’t hype—it was usefulness. By focusing on fewer, sturdier features, we avoided clever bugs and built a tool we’d trust during a tough night.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="info-section" id="help">
+            <h2>Need help?</h2>
+            <p>Visit the help desk or contact our support crew—real humans monitoring every request.</p>
+            <div class="help-links">
+                <a href="{{ url_for('views.help_page') }}" data-app-link="{{ url_for('views.help_page') }}" data-fallback-link="help.html">Help center</a>
+                <a href="mailto:lakshyd1@gmail.com">lakshyd1@gmail.com</a>
+                <a href="{{ url_for('views.mentor') }}" data-app-link="{{ url_for('views.mentor') }}" data-fallback-link="mentor.html">Request a mentor</a>
+            </div>
+        </section>
+
+        <section class="info-section" id="about">
+            <h2>About Us</h2>
+            <p>Let’s be real—opening up is scary, and therapy? Way too expensive. We’re Lakshay, Sumit, Adithya, and Nischay, four 2nd-year engineers from Presidency who realized that getting help shouldn't be a luxury.<br><br>We built this AI because we all need a safe space to yap without fear of judgment or emptying our wallets. Whether you're stressed about exams or just feeling off, our bot is here to listen 24/7. No awkward conversations, just pure support. Mental health matters, and we’ve got you.</p>
+        </section>
+    </div>
+
+    <!-- Footer Section -->
+    <div class="trusted-section">
+        <div class="trusted-text">Trusted by</div>
+        <div class="social-links">
+            <a href="#about" class="social-link">About Us</a>
+            <a href="#blog" class="social-link">Blog</a>
+            <a href="#research" class="social-link">Research</a>
+            <a href="https://twitter.com" target="_blank" class="social-link">Twitter</a>
+            <a href="https://linkedin.com" target="_blank" class="social-link">LinkedIn</a>
+            <a href="https://github.com" target="_blank" class="social-link">GitHub</a>
+        </div>
+    </div>
+    {% raw %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var fallbackLinks = document.querySelectorAll('[data-fallback-link]');
+            fallbackLinks.forEach(function (link) {
+                var href = link.getAttribute('href') || '';
+                if (href.indexOf('{{') !== -1) {
+                    link.setAttribute('href', link.getAttribute('data-fallback-link'));
+                }
+            });
+            var dualLinks = document.querySelectorAll('[data-app-link]');
+            var isFile = window.location.protocol === 'file:';
+            dualLinks.forEach(function (link) {
+                if (!isFile && link.getAttribute('data-app-link')) {
+                    link.setAttribute('href', link.getAttribute('data-app-link'));
+                } else if (isFile && link.getAttribute('data-fallback-link')) {
+                    link.setAttribute('href', link.getAttribute('data-fallback-link'));
+                }
+            });
+        });
+    </script>
+    {% endraw %}
+</body>
+</html>

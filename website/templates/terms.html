@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Althea Terms</title>
+    <style>
+        :root {
+            --sage: #eef6e5;
+            --text: #1f2a1c;
+            --muted: rgba(31, 42, 28, 0.65);
+        }
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 48px 16px 80px;
+            background: var(--sage);
+            color: var(--text);
+        }
+        .page {
+            max-width: 780px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 25px 60px rgba(31, 42, 28, 0.12);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        p {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        a {
+            color: var(--text);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <h1>Terms &amp; Conditions</h1>
+        <p>This lightweight summary explains how Althea keeps conversations private, how mentors provide supportive but non-clinical guidance, and how billing works after the complimentary mentor window. For a full legal copy, email <a href="mailto:legal@althea.care">legal@althea.care</a>.</p>
+        <p>1. The chat assistant and mentors offer guidance, not medical diagnoses. Always contact emergency services if you feel unsafe.</p>
+        <p>2. We encrypt chats in transit and at rest. Only aggregated, anonymized insights are used to improve the experience.</p>
+        <p>3. Mentor calls are free for the first 10 minutes; remaining time is billed in 15-minute blocks with your approval.</p>
+        <p>4. By continuing to use Althea you agree to these terms and our privacy policy.</p>
+        <p><a href="{{ url_for('views.help_page') }}" data-fallback-link="help.html">Back to Help</a></p>
+    </div>
+    {% raw %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var links = document.querySelectorAll('[data-fallback-link]');
+            links.forEach(function (link) {
+                var href = link.getAttribute('href') || '';
+                if (href.indexOf('{{') !== -1) {
+                    link.setAttribute('href', link.getAttribute('data-fallback-link'));
+                }
+            });
+        });
+    </script>
+    {% endraw %}
+</body>
+</html>
+

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+<div class="py-4">
+  <h1 class="mb-4">Account Overview</h1>
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">Profile</h5>
+      <p class="mb-1"><strong>Name:</strong> {{ user.first_name or "Not provided" }}</p>
+      <p class="mb-1"><strong>Email:</strong> {{ user.email }}</p>
+      {% set first_log = login_history[-1] if login_history|length > 0 else None %}
+      <p class="text-muted mb-0">
+        Member since
+        {% if first_log and first_log.timestamp %}
+          {{ first_log.timestamp.strftime('%B %d, %Y') }}
+        {% else %}
+          your first sign in.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">AI Agent Settings</h5>
+      <p class="text-muted small mb-4">Configure your AI providers. These keys are stored securely and used only for your chat sessions.</p>
+      
+      <form action="/update-ai-keys" method="POST">
+        <div class="mb-3">
+          <label for="active_ai_provider" class="form-label">Active Provider</label>
+          <select class="form-select" id="active_ai_provider" name="active_ai_provider">
+            <option value="ollama" {% if user.active_ai_provider == 'ollama' %}selected{% endif %}>Ollama (Local - No Key Required)</option>
+            <option value="openai" {% if user.active_ai_provider == 'openai' %}selected{% endif %}>OpenAI (GPT-4o/3.5)</option>
+            <option value="gemini" {% if user.active_ai_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+            <option value="anthropic" {% if user.active_ai_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="openai_api_key" class="form-label">OpenAI API Key</label>
+          <input type="password" class="form-control" id="openai_api_key" name="openai_api_key" 
+                 value="{{ user.openai_api_key or '' }}" placeholder="sk-...">
+        </div>
+
+        <div class="mb-3">
+          <label for="gemini_api_key" class="form-label">Gemini API Key</label>
+          <input type="password" class="form-control" id="gemini_api_key" name="gemini_api_key" 
+                 value="{{ user.gemini_api_key or '' }}" placeholder="Enter Gemini API Key">
+        </div>
+
+        <div class="mb-3">
+          <label for="anthropic_api_key" class="form-label">Anthropic API Key</label>
+          <input type="password" class="form-control" id="anthropic_api_key" name="anthropic_api_key" 
+                 value="{{ user.anthropic_api_key or '' }}" placeholder="sk-ant-...">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save AI Settings</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+
+    <div class="card-body">
+      <h5 class="card-title">Recent Activity</h5>
+      {% if login_history %}
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th scope="col">When</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in login_history %}
+            <tr>
+              <td>{{ log.timestamp.strftime('%b %d, %Y %I:%M %p') if log.timestamp else "" }}</td>
+              <td class="text-capitalize">{{ log.action }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No recent login activity yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

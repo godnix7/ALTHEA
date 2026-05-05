@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Chat Session{% endblock %}
+{% block content %}
+<a href="{{ url_for('views.chat_history') }}" class="btn btn-link px-0 mb-3">← Back to history</a>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+      <div>
+        <h3 class="mb-1">{{ session.title }}</h3>
+        <p class="text-muted mb-0">
+          Started {{ session.created_at.strftime('%b %d, %Y • %I:%M %p') if session.created_at }} ·
+          Last activity {{ session.updated_at.strftime('%b %d, %Y • %I:%M %p') if session.updated_at }}
+        </p>
+      </div>
+      <span class="badge {{ 'badge-success' if session.is_active else 'badge-secondary' }}">
+        {{ 'Active' if session.is_active else 'Archived' }}
+      </span>
+    </div>
+  </div>
+</div>
+
+{% if messages %}
+<div class="card">
+  <div class="card-body">
+    {% for message in messages %}
+    <div class="mb-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <strong>{{ 'You' if message.sender == 'user' else 'Althea' }}</strong>
+        <small class="text-muted">{{ message.timestamp.strftime('%b %d • %I:%M %p') if message.timestamp }}</small>
+      </div>
+      <p class="mb-2">{{ message.message }}</p>
+      <div class="d-flex justify-content-between text-muted small">
+        <span>Input: {{ message.input_mode or 'text' }}</span>
+        <span>Response: {{ message.response_mode or 'text' }}</span>
+        {% if message.provider %}
+        <span>Source: {{ message.provider }}</span>
+        {% endif %}
+      </div>
+      <hr />
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+  There are no messages saved under this session yet.
+ </div>
+{% endif %}
+{% endblock %}
+

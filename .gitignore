@@ -1,0 +1,9 @@
+venv/
+.env
+instance/
+__pycache__/
+*.pyc
+.vscode/
+website/__pycache__/
+website/*.db
+.vercel

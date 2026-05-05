@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="survey-prompt" id="gad9Prompt" role="dialog" aria-labelledby="gad9PromptTitle" aria-modal="true">
+  <div class="survey-content">
+    <div class="survey-header">
+      <div>
+        <p class="survey-title" id="gad9PromptTitle">Check in with the GAD-9</p>
+        <p class="survey-subtitle">
+          Take a quick anxiety self-check to tailor your mindful experience.
+        </p>
+      </div>
+      <button type="button" class="survey-close" id="gad9Decline" aria-label="Decline survey">
+        ×
+      </button>
+    </div>
+    <div class="survey-actions">
+      <button type="button" class="btn btn-outline-light" id="gad9Later">Maybe later</button>
+      <button type="button" class="btn btn-primary" id="gad9Accept">Take survey</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .survey-prompt {
+    position: fixed;
+    right: 2rem;
+    bottom: 2rem;
+    width: min(320px, calc(100vw - 2.5rem));
+    z-index: 1050;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(14, 23, 42, 0.94), rgba(37, 99, 235, 0.88));
+    color: #f8fafc;
+    box-shadow: 0 22px 40px rgba(15, 23, 42, 0.35);
+    padding: 1.4rem;
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .survey-prompt.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .survey-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .survey-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .survey-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .survey-subtitle {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(241, 245, 249, 0.85);
+  }
+
+  .survey-close {
+    border: none;
+    background: rgba(15, 23, 42, 0.25);
+    color: #e2e8f0;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .survey-close:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+  }
+
+  .survey-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .survey-actions .btn {
+    flex: 1 1 auto;
+    border-radius: 999px;
+    font-weight: 600;
+    min-width: 120px;
+  }
+
+  .survey-actions .btn-outline-light {
+    border: 1px solid rgba(248, 250, 252, 0.55);
+    color: #f8fafc;
+    background: transparent;
+  }
+
+  .survey-actions .btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  @media (max-width: 520px) {
+    .survey-prompt {
+      right: 1rem;
+      left: 1rem;
+      bottom: 1.25rem;
+      width: auto;
+    }
+
+    .survey-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<h1 class="text-center mb-4">Notes</h1>
+<ul class="list-group list-group-flush mb-4" id="notes">
+  {% for note in notes %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <span class="text-break">{{ note.data }}</span>
+    <button type="button" class="close" onClick="deleteNote({{ note.id }})" aria-label="Delete note">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+<form method="POST" class="pb-4">
+  <div class="form-group">
+    <label for="note" class="sr-only">Add a note</label>
+    <textarea
+      name="note"
+      id="note"
+      class="form-control"
+      rows="4"
+      placeholder="Write your thoughts here..."
+    ></textarea>
+  </div>
+  <div class="text-center">
+    <button type="submit" class="btn btn-primary px-4">Add Note</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block javascript %}
+{{ super() }}
+<script type="text/javascript">
+  (function () {
+    const promptEl = document.getElementById('gad9Prompt');
+    const acceptBtn = document.getElementById('gad9Accept');
+    const declineBtn = document.getElementById('gad9Decline');
+    const laterBtn = document.getElementById('gad9Later');
+    const storageKey = 'gad9_prompt_dismissed';
+
+    if (!promptEl) return;
+
+    const showPrompt = () => {
+      if (sessionStorage.getItem(storageKey)) return;
+      requestAnimationFrame(() => {
+        promptEl.classList.add('show');
+      });
+    };
+
+    const hidePrompt = () => {
+      promptEl.classList.remove('show');
+      sessionStorage.setItem(storageKey, '1');
+    };
+
+    acceptBtn?.addEventListener('click', () => {
+      sessionStorage.setItem(storageKey, '1');
+      window.location.href = '{{ url_for("views.gad9") }}';
+    });
+
+    [declineBtn, laterBtn].forEach((btn) =>
+      btn?.addEventListener('click', hidePrompt)
+    );
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(showPrompt, 600);
+    });
+  })();
+</script>
+{% endblock %}

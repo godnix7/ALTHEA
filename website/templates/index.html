@@ -1,0 +1,3508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chat UI — Althea (Frontend Only)</title>
+<script>
+  window.APP_CONTEXT = {{ {
+    "user": {
+      "id": current_user.id,
+      "name": current_user.display_name(),
+      "email": current_user.email
+    },
+    "activeSessionId": active_session.id if active_session else None,
+    "helpEmail": help_email or 'nischaykademane@gmail.com'
+  } | tojson }};
+</script>
+<style>
+  :root{
+    --offwhite:#F8F8F8;
+    --beige:#F5F5DC;
+    --beige-border:#E2E2C8;
+    --beige-active:#E6E6C7;
+    --page-bg: var(--offwhite);
+    --panel-bg: rgba(255,255,255,0.0);
+    --muted:#4a8a5c;
+    --text:#484848;
+    --accent:#4a8a5c; --accent-2:#5a9a6c;
+    --composer: var(--beige);
+    --composer-border: var(--beige-border);
+    --left-bg:#d6e2d7;
+    --radius:12px; --gap:14px; --laptop-width:1400px; --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto;
+  }
+  
+  /* Dark mode variables */
+  [data-theme="dark"]{
+    --page-bg: #1a1a1a;
+    --panel-bg: rgba(30,30,30,0.95);
+    --muted:#999;
+    --text:#ffffff;
+    --accent:#4a8a5c; --accent-2:#5a9a6c;
+    --composer:#2a2a2a;
+    --composer-border:#444;
+    --left-bg:#252525;
+  }
+  
+  /* Dark mode specific styles */
+  [data-theme="dark"] .from-bot{
+    background:#2a2a2a;
+    color:#e0e0e0;
+  }
+  [data-theme="dark"] .from-me{
+    background:var(--accent);
+    color:#ffffff;
+  }
+  [data-theme="dark"] .quick-suggestions{
+    background:rgba(40,40,40,0.5);
+    border-color:rgba(91,155,213,0.3);
+  }
+  [data-theme="dark"] .quick-suggestion-btn{
+    background:#2a2a2a;
+    border-color:rgba(91,155,213,0.3);
+    color:#e0e0e0;
+  }
+  [data-theme="dark"] .quick-suggestion-btn:hover{
+    background:#333;
+  }
+  [data-theme="dark"] .file-item{
+    background:#2a2a2a;
+    border-color:#444;
+    color:#e0e0e0;
+  }
+  [data-theme="dark"] .msg-attachment-file{
+    background:rgba(91,155,213,0.15);
+  }
+  
+  /* Accent color schemes */
+  [data-accent="blue"]{
+    --accent:#5b9bd5; --accent-2:#7bb3d9;
+  }
+  [data-accent="green"]{
+    --accent:#4caf50; --accent-2:#66bb6a;
+  }
+  [data-accent="purple"]{
+    --accent:#9c27b0; --accent-2:#ba68c8;
+  }
+  [data-accent="red"]{
+    --accent:#f44336; --accent-2:#ef5350;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; padding:0; font-family:var(--font-sans); background:var(--page-bg); color:var(--text); -webkit-font-smoothing:antialiased; overflow-x:hidden;}
+
+  /* layout: two columns - left rail + main. right rail removed for Althea-like layout */
+  .container{width:min(var(--laptop-width),100vw); margin:0; padding:12px; display:grid; grid-template-columns:240px 1fr; gap:24px; align-items:start; transition:grid-template-columns 0.32s ease, gap 0.32s ease; box-sizing:border-box; max-width:100vw; overflow:hidden;}
+  .container.collapsed{grid-template-columns:88px 1fr; gap:16px;}
+  @media (max-width:880px){ .container{ grid-template-columns: 64px 1fr; padding:8px; gap:16px; } }
+
+  /* LEFT RAIL - pale blue, minimal */
+  .left-rail{
+    background:var(--left-bg);
+    color: var(--text);
+    border-radius:12px;
+    padding:12px 10px;
+    height:92vh;
+    position:relative;
+    overflow:visible;
+    box-shadow: 0 2px 8px rgba(91,155,213,0.08);
+    transition:width 0.32s ease, padding 0.32s ease, box-shadow 0.24s ease;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    min-width:0;
+    max-width:100%;
+    justify-content:space-between;
+  }
+  .left-rail.collapsed{width:84px; padding:16px 8px; align-items:center;}
+  .left-header{display:flex; align-items:center; gap:6px; margin-bottom:8px; transition:gap 0.24s ease, padding 0.24s ease, flex-direction 0.24s ease;}
+  .left-header > *{flex-shrink:0;}
+  .left-header .collapse-hidden{flex:1; min-width:0;}
+  .left-rail.collapsed .left-header{flex-direction:column; justify-content:flex-start; align-items:center; gap:8px; width:100%;}
+  .logo{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));}
+  .brand{font-weight:700;color:var(--text)}
+  .sidebar-toggle{ margin-left:auto; background:rgba(91,155,213,0.25); border:none; color:var(--text); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:16px; transition:background 0.2s ease, color 0.2s ease, transform 0.24s ease, margin 0.24s ease; font-weight:600;}
+  .sidebar-toggle:hover{background:rgba(91,155,213,0.35);}
+  .left-rail.collapsed .sidebar-toggle{margin-left:0; transform:rotate(-180deg);}
+  .menu{ margin-top:4px; display:flex; flex-direction:column; gap:6px; transition:opacity 0.24s ease;}
+  .menu button{ background:transparent; color:var(--text); border:none; padding:10px; text-align:left; border-radius:8px; cursor:pointer; transition:background 0.2s ease, color 0.2s ease, padding 0.24s ease;}
+  .menu button:hover{ background:rgba(91,155,213,0.1) }
+  .saved-chats-menu-item{ display:flex; flex-direction:column; position:relative; }
+  .saved-chats-menu-item .chats{ margin-top:4px; margin-left:8px; max-height:300px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:rgba(91,155,213,0.3) transparent; display:none; }
+  .saved-chats-menu-item .chats.show{ display:block; }
+  .saved-chats-menu-item .chats::-webkit-scrollbar{width:4px;}
+  .saved-chats-menu-item .chats::-webkit-scrollbar-track{background:transparent;}
+  .saved-chats-menu-item .chats::-webkit-scrollbar-thumb{background:rgba(91,155,213,0.3); border-radius:2px;}
+  .saved-chats-menu-item .chats::-webkit-scrollbar-thumb:hover{background:rgba(91,155,213,0.5);}
+  .saved-chats-menu-item .chats .item{ color:var(--text); padding:8px 12px; cursor:pointer; opacity:0.8; font-size:13px; border-left:2px solid transparent; transition:all 0.2s ease; }
+  .saved-chats-menu-item .chats .item:hover{ opacity:1; background:rgba(91,155,213,0.08); border-left-color:var(--accent); border-radius:4px; }
+  .saved-chats-menu-item .chats .item.active{ background:rgba(91,155,213,0.15); opacity:1; font-weight:600; border-left-color:var(--accent); }
+  .chats{ margin-top:12px; overflow-y:auto; overflow-x:hidden; max-height:70vh; scrollbar-width:none; -ms-overflow-style:none; }
+  .chats::-webkit-scrollbar{display:none;}
+  .chats .item{ color:var(--text); padding:8px 6px; cursor:pointer; opacity:0.8; }
+  .chats .item:hover{ opacity:1; background:rgba(91,155,213,0.08); border-radius:6px; }
+  .chats .item.active{ background:rgba(91,155,213,0.15); opacity:1; font-weight:600; }
+  .saved-chats-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(44,74,95,0.6);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
+    z-index:35;
+  }
+  .saved-chats-modal.open{opacity:1; pointer-events:auto;}
+  .saved-chats-container{
+    width:min(600px,90vw);
+    max-height:80vh;
+    background:white;
+    border-radius:16px;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,0.3);
+  }
+  .saved-chats-header{
+    padding:20px 24px;
+    border-bottom:1px solid var(--composer-border);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .saved-chats-header h3{margin:0; font-size:18px; color:var(--text);}
+  .saved-chats-close{
+    background:transparent;
+    border:none;
+    color:var(--muted);
+    font-size:24px;
+    cursor:pointer;
+    padding:0;
+    width:32px;
+    height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px;
+    transition:background 0.2s ease;
+  }
+  .saved-chats-close:hover{background:rgba(91,155,213,0.1);}
+  .saved-chats-list{
+    flex:1;
+    overflow-y:auto;
+    padding:12px;
+  }
+  .saved-chat-item{
+    padding:12px;
+    border-radius:8px;
+    cursor:pointer;
+    margin-bottom:8px;
+    border:1px solid transparent;
+    transition:background 0.2s ease, border-color 0.2s ease;
+  }
+  .saved-chat-item:hover{
+    background:rgba(91,155,213,0.08);
+    border-color:var(--composer-border);
+  }
+  .saved-chat-title{
+    font-weight:600;
+    color:var(--text);
+    margin-bottom:4px;
+    font-size:14px;
+  }
+  .saved-chat-preview{
+    font-size:12px;
+    color:var(--muted);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .saved-chat-date{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:4px;
+  }
+  .saved-chats-empty{
+    text-align:center;
+    padding:40px 20px;
+    color:var(--muted);
+  }
+  
+  /* Account bar at bottom */
+  .account-section{ margin-top:auto; padding-top:12px; border-top:1px solid rgba(91,155,213,0.2); position:relative; }
+  .account-trigger{ 
+    width:100%; 
+    display:flex; 
+    align-items:center; 
+    gap:8px; 
+    padding:8px; 
+    background:transparent; 
+    border:none; 
+    border-radius:8px; 
+    cursor:pointer; 
+    color:var(--text);
+    transition:background 0.2s ease;
+  }
+  .account-trigger:hover{ background:rgba(91,155,213,0.1); }
+  .account-avatar{ 
+    width:32px; 
+    height:32px; 
+    border-radius:10px; 
+    background:#d4e8c1; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    color:#2b4631; 
+    font-weight:600; 
+    font-size:14px;
+    flex-shrink:0;
+    border:1px solid rgba(43,70,49,0.2);
+  }
+  .account-info{ flex:1; text-align:left; min-width:0; }
+  .account-name{ font-weight:600; font-size:14px; color:var(--text); }
+  .account-email{ font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .account-dropdown{ 
+    position:absolute; 
+    bottom:60px; 
+    left:10px; 
+    right:10px; 
+    background:white; 
+    border-radius:12px; 
+    box-shadow:0 8px 24px rgba(44,74,95,0.2); 
+    padding:8px; 
+    display:none; 
+    flex-direction:column; 
+    gap:4px;
+    z-index:20;
+    border:1px solid var(--composer-border);
+  }
+  [data-theme="dark"] .account-dropdown{
+    background:#2a2a2a;
+    color:#fff;
+    border:1px solid #444;
+  }
+  .account-dropdown.show{ display:flex; }
+  .account-dropdown-item{ 
+    display:flex; 
+    align-items:center; 
+    gap:10px; 
+    padding:10px 12px; 
+    border-radius:8px; 
+    cursor:pointer; 
+    color:var(--text); 
+    font-size:14px;
+    transition:background 0.2s ease;
+    border:none;
+    background:transparent;
+    text-align:left;
+    width:100%;
+  }
+  .account-dropdown-item:hover{ background:rgba(91,155,213,0.1); }
+  .account-dropdown-item-icon{ display:none; }
+  .left-rail.collapsed .account-info{ display:none; }
+  .left-rail.collapsed .account-trigger{ justify-content:center; padding:8px; }
+  .left-rail.collapsed .account-dropdown{ left:84px; right:auto; width:200px; }
+  .signup-btn{
+    width:100%;
+    padding:10px 16px;
+    background:var(--accent);
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600;
+    transition:background 0.2s ease, transform 0.1s ease;
+    text-align:center;
+  }
+  .signup-btn.secondary{
+    background:rgba(43,70,49,0.1);
+    color:#2b4631;
+    border:1px solid rgba(43,70,49,0.2);
+  }
+  .signup-btn:hover{background:var(--accent-2);}
+  .signup-btn.secondary:hover{background:rgba(43,70,49,0.2);}
+  .signup-btn:active{transform:scale(0.98);}
+  .account-section .account-profile{display:none;}
+  .account-section.logged-in .account-profile{display:block;}
+  .account-section.logged-in .signup-btn{display:none;}
+
+  /* Help flyout */
+  .help-menu{
+    position:absolute;
+    bottom:70px;
+    left:calc(100% + 12px);
+    width:240px;
+    background:#FAFAF0;
+    border-radius:16px;
+    box-shadow:0 18px 40px rgba(0,0,0,0.12);
+    padding:10px;
+    border:1px solid var(--beige-border);
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    z-index:60;
+    color:#1a1a1a;
+  }
+  .help-menu::before{
+    content:"";
+    position:absolute;
+    left:-8px;
+    bottom:28px;
+    width:12px;
+    height:12px;
+    background:#FAFAF0;
+    border-left:1px solid var(--beige-border);
+    border-bottom:1px solid var(--beige-border);
+    transform:rotate(45deg);
+  }
+  .help-menu.open{display:flex;}
+  .help-menu-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 12px;
+    border-radius:12px;
+    background:transparent;
+    border:none;
+    color:inherit;
+    text-align:left;
+    cursor:pointer;
+    transition:background 0.2s ease;
+  }
+  .help-menu-item:hover{
+    background:rgba(43,70,49,0.08);
+  }
+  .help-menu-icon{
+    width:28px;
+    height:28px;
+    border-radius:8px;
+    background:rgba(43,70,49,0.1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+  }
+  .help-menu-copy{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    line-height:1.2;
+  }
+  .help-menu-copy span{
+    font-size:13px;
+    font-weight:600;
+  }
+  .help-menu-copy small{
+    font-size:11px;
+    color:rgba(255,255,255,0.6);
+  }
+  .help-menu-arrow{
+    font-size:13px;
+    opacity:0.6;
+  }
+
+  /* MAIN AREA: remove heavy panel borders and boxes, keep airy layout */
+  .main{
+    height:92vh; display:flex; flex-direction:column; gap:12px; position:relative; padding-bottom:100px; overflow:hidden; min-width:0;
+  }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:8px 4px; gap:12px; }
+  .site-brand{ font-weight:800; letter-spacing:0.08em; color:var(--text); opacity:0.9; font-size:18px; transition:margin-left 0.24s ease, opacity 0.24s ease; }
+  .container.collapsed .site-brand{ margin-left:0; opacity:0.95; }
+  .container:not(.collapsed) .site-brand{ margin-left:4px; }
+  .topbar-nav{
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .topbar-link{
+    border:1px solid rgba(72,72,72,0.25);
+    color:#2b4631;
+    background:transparent;
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    text-decoration:none;
+    transition:background 0.2s ease,border 0.2s ease;
+  }
+  .topbar-link:hover{
+    background:rgba(43,70,49,0.08);
+  }
+  .title{ font-weight:700; font-size:18px; color:var(--text)}
+  .controls{ display:flex; gap:8px; align-items:center }
+  .controls .btn{ background:transparent; border:1px solid transparent; padding:8px 10px; border-radius:8px; cursor:pointer }
+
+  /* message area - wide, no card background (transparent), messages float on page */
+  .messages{
+    flex:1; overflow-y:auto; overflow-x:hidden; padding:18px 40px 24px; display:flex; flex-direction:column; gap:14px;
+    scrollbar-width:none; /* Firefox */
+    -ms-overflow-style:none; /* IE and Edge */
+  }
+  .messages.centered{ align-items:center; }
+  .messages::-webkit-scrollbar{display:none;} /* Chrome, Safari, Opera */
+  .msg{ max-width:72%; padding:12px 14px; border-radius:14px; line-height:1.35; word-wrap:break-word; overflow-wrap:break-word; min-width:0; }
+  .from-bot{ align-self:flex-start; background:#d8eaf5; color:var(--text); box-shadow: 0 2px 8px rgba(91,155,213,0.1); }
+  .from-me{ align-self:flex-end; background:var(--accent); color:#ffffff }
+  .welcome-msg{ 
+    width:100%; 
+    max-width:600px; 
+    text-align:center; 
+    padding:50px 20px; 
+    background:transparent; 
+    color:var(--text); 
+    font-size:22px; 
+    font-weight:500;
+    border:none;
+    box-shadow:none;
+    align-self:center;
+  }
+  .welcome-msg .welcome-name{ 
+    font-size:32px; 
+    font-weight:900; 
+    font-family:"Arial Black", Arial, sans-serif;
+    color:#5b9bd5; 
+    margin:16px 0; 
+  }
+  .welcome-msg .welcome-subtitle{ font-size:17px; color:var(--muted); margin-top:16px; }
+  .quick-suggestions{
+    width:100%;
+    max-width:600px;
+    margin-top:24px;
+    padding:20px;
+    border:2px dashed rgba(91,155,213,0.4);
+    border-radius:16px;
+    background:rgba(248,250,252,0.5);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    align-self:center;
+  }
+  .quick-suggestions-title{
+    font-size:14px;
+    color:var(--muted);
+    font-weight:500;
+    margin-bottom:4px;
+    text-align:center;
+  }
+  .quick-suggestions-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:center;
+  }
+  .quick-suggestion-btn{
+    padding:10px 18px;
+    background:white;
+    border:1px solid rgba(91,155,213,0.3);
+    border-radius:20px;
+    color:var(--text);
+    font-size:14px;
+    cursor:pointer;
+    transition:all 0.2s ease;
+    white-space:nowrap;
+    font-weight:500;
+  }
+  .quick-suggestion-btn:hover{
+    background:rgba(91,155,213,0.1);
+    border-color:var(--accent);
+    transform:translateY(-1px);
+    box-shadow:0 2px 8px rgba(91,155,213,0.15);
+  }
+  .quick-suggestion-btn:active{
+    transform:translateY(0);
+  }
+  .meta{ font-size:12px; color:var(--muted); margin-top:6px }
+
+  /* Composer: fixed at bottom center of page */
+  .composer-wrap{ 
+    position:fixed; 
+    bottom:24px; 
+    left:50%; 
+    transform:translateX(-50%); 
+    width:100%; 
+    max-width:768px; 
+    padding:0 24px; 
+    z-index:10;
+    pointer-events:none;
+  }
+  .composer{ 
+    width:100%; 
+    background:var(--composer); 
+    border:1px solid var(--composer-border); 
+    border-radius:20px; 
+    padding:8px 12px; 
+    box-shadow:0 4px 16px rgba(0,0,0,0.08); 
+    display:flex; 
+    gap:6px; 
+    align-items:center;
+    flex-wrap:nowrap;
+    pointer-events:auto;
+    backdrop-filter:blur(12px);
+    min-height:44px;
+  }
+  .left-actions{ display:flex; align-items:center; flex-shrink:0; }
+  .plus-btn{ 
+    width:28px;
+    height:28px;
+    border-radius:6px;
+    border:none;
+    background:transparent; 
+    font-size:16px; 
+    cursor:pointer;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background 0.2s ease, color 0.2s ease;
+    flex-shrink:0;
+    position:relative;
+  }
+  .plus-btn:hover{background:rgba(91,155,213,0.1); color:var(--accent);}
+  .plus-btn::after{
+    content:'Add photos and files';
+    position:absolute;
+    bottom:100%;
+    left:50%;
+    transform:translateX(-50%);
+    margin-bottom:8px;
+    padding:6px 10px;
+    background:rgba(44,74,95,0.95);
+    color:white;
+    font-size:12px;
+    border-radius:6px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.2s ease;
+    z-index:100;
+  }
+  .plus-btn:hover::after{
+    opacity:1;
+  }
+  .file-input{display:none;}
+  .file-preview{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:8px;
+    padding:8px;
+    background:rgba(91,155,213,0.05);
+    border-radius:8px;
+  }
+  .voice-response-choice{
+    display:none;
+    margin-top:10px;
+    background:rgba(74,138,92,0.08);
+    border:1px solid var(--composer-border);
+    border-radius:16px;
+    padding:12px 16px;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+  }
+  .voice-response-choice.show{
+    display:flex;
+  }
+  .voice-response-choice .voice-choice-label{
+    font-weight:600;
+    color:var(--text);
+  }
+  .voice-response-choice .voice-choice-actions{
+    display:flex;
+    gap:10px;
+  }
+  .voice-response-choice button{
+    border:none;
+    border-radius:12px;
+    padding:8px 16px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .voice-response-choice button.voice-choice-text{
+    background:#fff;
+    border:1px solid var(--composer-border);
+    color:var(--text);
+  }
+  .voice-response-choice button.voice-choice-voice{
+    background:var(--accent);
+    color:#fff;
+  }
+  .file-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    background:white;
+    border:1px solid var(--composer-border);
+    border-radius:6px;
+    font-size:12px;
+    color:var(--text);
+  }
+  .file-item img{
+    width:32px;
+    height:32px;
+    object-fit:cover;
+    border-radius:4px;
+  }
+  .file-item-info{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .file-item-name{
+    font-weight:500;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width:150px;
+  }
+  .file-item-size{
+    font-size:11px;
+    color:var(--muted);
+  }
+  .file-item-remove{
+    background:transparent;
+    border:none;
+    color:var(--muted);
+    cursor:pointer;
+    font-size:16px;
+    padding:0;
+    width:20px;
+    height:20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:4px;
+    transition:background 0.2s ease, color 0.2s ease;
+  }
+  .file-item-remove:hover{
+    background:rgba(220,53,69,0.1);
+    color:#dc3545;
+  }
+  .msg-attachment{
+    margin-top:8px;
+    max-width:100%;
+  }
+  .msg-attachment img{
+    max-width:100%;
+    max-height:400px;
+    border-radius:8px;
+    object-fit:contain;
+  }
+  .msg-attachment-file{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 12px;
+    background:rgba(91,155,213,0.1);
+    border-radius:8px;
+    text-decoration:none;
+    color:var(--text);
+  }
+  .msg-attachment-file-icon{
+    font-size:20px;
+  }
+  .msg-attachment-file-info{
+    flex:1;
+    min-width:0;
+  }
+  .msg-attachment-file-name{
+    font-weight:500;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .msg-attachment-file-size{
+    font-size:11px;
+    color:var(--muted);
+  }
+  textarea{ 
+    flex:1; 
+    height:28px;
+    min-height:28px; 
+    max-height:28px; 
+    line-height:28px;
+    resize:none; 
+    border:none; 
+    padding:0 6px; 
+    font-size:14px; 
+    outline:none; 
+    background:transparent;
+    font-family:inherit;
+    color:var(--text);
+    overflow-y:auto;
+  }
+  textarea::placeholder{color:var(--muted);}
+  .mic-btn{
+    width:28px;
+    height:28px;
+    border-radius:6px;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background 0.2s ease, color 0.2s ease;
+    flex-shrink:0;
+    padding:0;
+    position:relative;
+  }
+  .mic-btn svg{
+    width:16px;
+    height:16px;
+  }
+  .mic-btn:hover{background:rgba(91,155,213,0.1); color:var(--accent);}
+  .mic-btn::after{
+    content:'Voice input';
+    position:absolute;
+    bottom:100%;
+    left:50%;
+    transform:translateX(-50%);
+    margin-bottom:8px;
+    padding:6px 10px;
+    background:rgba(44,74,95,0.95);
+    color:white;
+    font-size:12px;
+    border-radius:6px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.2s ease;
+    z-index:100;
+  }
+  .mic-btn:hover::after{opacity:1;}
+  .mic-btn.recording{
+    color:#f44336;
+    animation:pulse 1.5s ease-in-out infinite;
+  }
+  .mic-btn.recording svg{
+    animation:pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%, 100%{opacity:1;}
+    50%{opacity:0.5;}
+  }
+  .send-btn-wrap{display:flex; align-items:center; flex-shrink:0;}
+  .send-btn{ 
+    width:28px;
+    height:28px;
+    border-radius:6px;
+    border:none;
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    transition:background 0.2s ease, transform 0.1s ease;
+    flex-shrink:0;
+    position:relative;
+  }
+  .send-btn:hover{background:var(--accent-2);}
+  .send-btn:active{transform:scale(0.95);}
+  .send-btn::after{
+    content:'Send message';
+    position:absolute;
+    bottom:100%;
+    left:50%;
+    transform:translateX(-50%);
+    margin-bottom:8px;
+    padding:6px 10px;
+    background:rgba(44,74,95,0.95);
+    color:white;
+    font-size:12px;
+    border-radius:6px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.2s ease;
+    z-index:100;
+  }
+  .send-btn:hover::after{opacity:1;}
+  .file-list{ display:flex; gap:8px; flex-wrap:wrap }
+
+  .btn{ padding:8px 12px; border-radius:10px; border:none; cursor:pointer }
+  .btn.ghost{ background:transparent; color:var(--text); border:1px solid var(--composer-border) }
+  .btn.ghost:hover{ background:rgba(91,155,213,0.08); }
+  .btn.primary{ background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:white }
+  .btn.primary:hover{ background:linear-gradient(90deg,var(--accent-2),var(--accent)); }
+
+  /* Sign-in modal */
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(44,74,95,0.4);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
+    z-index:30;
+  }
+  .modal-backdrop.open{opacity:1; pointer-events:auto;}
+  .modal-card{
+    position:relative;
+    width:min(440px,100%);
+    background:rgba(255,255,255,0.98);
+    border-radius:16px;
+    padding:28px;
+    box-shadow:0 16px 48px rgba(91,155,213,0.2);
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    color:var(--text);
+  }
+  .modal-close{
+    position:absolute;
+    top:16px;
+    right:16px;
+    background:transparent;
+    border:none;
+    color:var(--muted);
+    font-size:20px;
+    cursor:pointer;
+  }
+  .modal-card h2{margin:0; font-size:22px;}
+  .modal-card p{margin:0; color:var(--muted);}
+  .modal-card form{display:flex; flex-direction:column; gap:14px;}
+  .modal-card label{font-size:13px; font-weight:600;}
+  .modal-card input{
+    width:100%;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--composer-border);
+    background:rgba(255,255,255,0.96);
+    font-size:14px;
+    outline:none;
+  }
+  .modal-card input:focus{border-color:var(--accent); box-shadow:0 0 0 2px rgba(91,155,213,0.2);} 
+  [data-theme="dark"] .modal-backdrop{background:rgba(0,0,0,0.65);} 
+  [data-theme="dark"] .modal-card{background:#222; color:#fff; border:1px solid #444;} 
+  [data-theme="dark"] .modal-card h2{color:#fff;} 
+  [data-theme="dark"] .modal-card p{color:#ccc;} 
+  [data-theme="dark"] .modal-card label{color:#ddd;} 
+  [data-theme="dark"] .modal-card input{background:#1f1f1f; border:1px solid #444; color:#fff;} 
+  [data-theme="dark"] .modal-card input::placeholder{color:#bbb;} 
+  .modal-card .btn.primary{width:100%; margin-top:6px;}
+  .modal-footer{display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted);}
+  .modal-footer a{color:var(--accent); text-decoration:none;}
+  .modal-footer a:hover{text-decoration:underline;}
+
+  /* Settings Modal - Dark Theme */
+  .settings-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(44,74,95,0.6);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
+    z-index:40;
+  }
+  .settings-modal.open{opacity:1; pointer-events:auto;}
+  .settings-container{
+    width:min(1000px,95vw);
+    height:min(700px,85vh);
+    background:#1a1a1a;
+    border-radius:16px;
+    display:grid;
+    grid-template-columns:240px 1fr;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .settings-sidebar{
+    background:#252525;
+    padding:20px 0;
+    display:flex;
+    flex-direction:column;
+    border-right:1px solid #333;
+  }
+  .settings-close{
+    background:transparent;
+    border:none;
+    color:#999;
+    font-size:20px;
+    cursor:pointer;
+    padding:12px 20px;
+    text-align:left;
+    transition:color 0.2s ease;
+  }
+  .settings-close:hover{color:#fff;}
+  .settings-nav{
+    flex:1;
+    padding:8px 0;
+    overflow-y:auto;
+  }
+  .settings-nav-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 20px;
+    background:transparent;
+    border:none;
+    color:#666;
+    cursor:pointer;
+    width:100%;
+    text-align:left;
+    font-size:14px;
+    transition:background 0.2s ease, color 0.2s ease;
+  }
+  [data-theme="dark"] .settings-nav-item{
+    color:#ccc;
+  }
+  .settings-nav-item:hover{background:#2a2a2a; color:#fff;}
+  .settings-nav-item.active{background:#333; color:#fff;}
+  .settings-nav-item-icon{display:none;}
+  .settings-content{
+    padding:32px 40px;
+    overflow-y:auto;
+    background:#1a1a1a;
+    color:#fff;
+  }
+  .settings-content h2{margin:0 0 32px 0; font-size:24px; font-weight:600; color:#fff;}
+  .settings-section{
+    margin-bottom:32px;
+    padding-bottom:32px;
+    border-bottom:1px solid #333;
+  }
+  .settings-section:last-child{border-bottom:none; margin-bottom:0; padding-bottom:0;}
+  .settings-section-title{
+    font-size:16px; font-weight:600; margin:0 0 16px 0; color:#fff;
+  }
+  .settings-section-desc{
+    font-size:13px; color:#999; margin:0 0 20px 0; line-height:1.5;
+  }
+  .settings-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:16px 0;
+    border-bottom:1px solid #2a2a2a;
+  }
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row-label{
+    flex:1;
+  }
+  .settings-row-label-title{
+    font-size:14px; color:#fff; margin:0 0 4px 0;
+  }
+  .settings-row-label-desc{
+    font-size:12px; color:#999; margin:0;
+  }
+  .settings-row-control{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .settings-select{
+    background:#2a2a2a;
+    border:1px solid #333;
+    border-radius:8px;
+    padding:8px 12px;
+    color:#fff;
+    font-size:14px;
+    cursor:pointer;
+    outline:none;
+    min-width:150px;
+  }
+  .settings-select:hover{border-color:#444;}
+  .settings-select:focus{border-color:#5b9bd5;}
+  .settings-toggle{
+    width:44px;
+    height:24px;
+    background:var(--beige);
+    border-radius:12px;
+    position:relative;
+    cursor:pointer;
+    transition:background 0.2s ease;
+  }
+  .settings-toggle.active{background:var(--beige-active);} 
+  .settings-toggle-slider{
+    width:18px;
+    height:18px;
+    background:#fff;
+    border-radius:50%;
+    position:absolute;
+    top:3px;
+    left:3px;
+    transition:transform 0.2s ease;
+  }
+  .settings-toggle.active .settings-toggle-slider{transform:translateX(20px);}
+  [data-theme="dark"] .settings-toggle{background:#444;}
+  [data-theme="dark"] .settings-toggle.active{background:#5b9bd5;}
+  .settings-btn{
+    padding:8px 16px;
+    border-radius:8px;
+    border:1px solid #444;
+    background:transparent;
+    color:#fff;
+    font-size:14px;
+    cursor:pointer;
+    transition:background 0.2s ease, border-color 0.2s ease;
+  }
+  .settings-btn:hover{background:#2a2a2a; border-color:#555;}
+  .settings-btn.danger{
+    border-color:#d32f2f;
+    color:#d32f2f;
+  }
+  .settings-btn.danger:hover{background:#2a1a1a; border-color:#f44336;}
+  .settings-link{
+    color:#5b9bd5;
+    text-decoration:none;
+    font-size:14px;
+  }
+  .settings-link:hover{text-decoration:underline;}
+  .settings-info-box{
+    background:#252525;
+    border:1px solid #333;
+    border-radius:12px;
+    padding:16px;
+    margin-top:16px;
+    color:#999;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .settings-play-btn{
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    background:#2a2a2a;
+    border:1px solid #333;
+    color:#fff;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    transition:background 0.2s ease;
+  }
+  .settings-play-btn:hover{background:#333;}
+  .settings-btn-manage{
+    padding:6px 12px;
+    border-radius:6px;
+    border:1px solid #444;
+    background:transparent;
+    color:#fff;
+    font-size:13px;
+    cursor:pointer;
+    transition:background 0.2s ease, border-color 0.2s ease;
+  }
+  .settings-btn-manage:hover{background:#2a2a2a; border-color:#555;}
+  .settings-row-with-chevron{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:16px 0;
+    border-bottom:1px solid #2a2a2a;
+    cursor:pointer;
+  }
+  .choice-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:12px 0;
+  }
+  .choice-row .btn{
+    flex:1;
+    min-width:140px;
+  }
+  .input-group{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .input-group label{
+    font-size:13px;
+    font-weight:600;
+    color:var(--text);
+  }
+  /* GAD-9 card */
+  .survey-card{
+    position:fixed;
+    right:24px;
+    bottom:24px;
+    width:260px;
+    background:linear-gradient(135deg,#312b81,#693dd2);
+    color:#fff;
+    border-radius:16px;
+    box-shadow:0 18px 40px rgba(0,0,0,0.25);
+    padding:18px 20px 20px;
+    z-index:80;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .survey-card.hidden{display:none;}
+  .survey-card h4{
+    margin:0;
+    font-size:16px;
+  }
+  .survey-card p{
+    margin:0;
+    font-size:13px;
+    color:rgba(255,255,255,0.85);
+  }
+  .survey-actions{
+    display:flex;
+    gap:10px;
+  }
+  .survey-actions button{
+    flex:1;
+    border-radius:999px;
+    border:none;
+    padding:8px 0;
+    cursor:pointer;
+    font-weight:600;
+    font-size:13px;
+  }
+  .survey-actions .maybe-btn{
+    background:rgba(255,255,255,0.18);
+    color:#fff;
+  }
+  .survey-actions .start-btn{
+    background:#4cd5ff;
+    color:#103049;
+  }
+  .survey-close{
+    position:absolute;
+    top:8px;
+    right:10px;
+    background:transparent;
+    border:none;
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .settings-row-with-chevron:hover{background:#1f1f1f;}
+  .settings-row-with-chevron:last-child{border-bottom:none;}
+  .settings-chevron{color:#999; font-size:14px; margin-left:8px;}
+  .settings-info-icon{
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    background:#333;
+    color:#999;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    margin-left:8px;
+    cursor:help;
+  }
+  .settings-input{
+    background:#2a2a2a;
+    border:1px solid #333;
+    border-radius:8px;
+    padding:8px 12px;
+    color:#fff;
+    font-size:14px;
+    outline:none;
+    width:100%;
+    margin-top:8px;
+  }
+  .settings-input:focus{border-color:#5b9bd5;}
+  .settings-link-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:12px 0;
+    border-bottom:1px solid #2a2a2a;
+  }
+  .settings-link-item:last-child{border-bottom:none;}
+  .settings-link-icon{width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:16px;}
+  .settings-preview-box{
+    background:#252525;
+    border:1px solid #333;
+    border-radius:12px;
+    padding:24px;
+    margin-bottom:24px;
+    text-align:center;
+  }
+  .settings-preview-label{
+    text-align:right;
+    font-size:12px;
+    color:#999;
+    margin-bottom:16px;
+  }
+  .settings-preview-icon{
+    width:64px;
+    height:64px;
+    background:#333;
+    border-radius:12px;
+    margin:0 auto 12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+  }
+  .settings-preview-name{
+    font-size:16px;
+    font-weight:600;
+    color:#fff;
+    margin-bottom:4px;
+  }
+  .settings-preview-author{
+    font-size:13px;
+    color:#999;
+  }
+
+  /* small screen adjustments */
+  .left-rail .collapse-hidden{transition:opacity 0.28s ease, transform 0.28s ease; transform-origin:left center;}
+  .left-rail.collapsed .collapse-hidden{opacity:0; height:0; overflow:hidden; pointer-events:none; margin:0 !important; transform:translateX(-8px);}
+  .left-rail.collapsed .logo{display:none;}
+  .left-rail.collapsed .menu button{padding:10px 0; text-align:center;}
+  .left-rail.collapsed .sidebar-toggle{align-self:center; position:static; top:auto;}
+  
+  @media (max-width:768px){
+    .composer-wrap{max-width:calc(100% - 48px); padding:0 24px; bottom:16px;}
+    .composer{padding:6px 10px; min-height:40px;}
+    .messages{padding:18px 20px 24px;}
+    .welcome-msg{padding:40px 16px; font-size:20px;}
+    .welcome-msg .welcome-name{font-size:28px; font-family:"Arial Black", Arial, sans-serif; color:#5b9bd5;}
+    .welcome-msg .welcome-subtitle{font-size:16px;}
+    .quick-suggestions{padding:16px; margin-top:20px;}
+    .quick-suggestion-btn{padding:8px 14px; font-size:13px;}
+  }
+  
+  @media (max-width:520px){ 
+    .container{ grid-template-columns:64px 1fr }
+    .composer-wrap{max-width:calc(100% - 32px); padding:0 16px; bottom:12px;}
+    .composer{padding:6px 8px; border-radius:18px; min-height:38px;}
+    .plus-btn, .send-btn{width:24px; height:24px; font-size:12px;}
+    textarea{font-size:13px; padding:3px 4px;}
+    .messages{padding:12px 16px 24px;}
+    .welcome-msg{padding:32px 12px; font-size:18px; max-width:100%;}
+    .welcome-msg .welcome-name{font-size:24px; font-family:"Arial Black", Arial, sans-serif; color:#5b9bd5;}
+    .welcome-msg .welcome-subtitle{font-size:15px;}
+    .quick-suggestions{padding:12px; margin-top:16px; gap:8px;}
+    .quick-suggestions-title{font-size:12px; margin-bottom:2px;}
+    .quick-suggestions-list{gap:8px;}
+    .quick-suggestion-btn{padding:8px 12px; font-size:12px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="container collapsed">
+  <!-- LEFT RAIL -->
+  <aside class="left-rail collapsed" id="leftRail" aria-label="Left sidebar">
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; min-height:0;">
+      <div class="left-header">
+        <div class="logo" aria-hidden="true"></div>
+        
+        <button class="sidebar-toggle" id="toggleSidebar" title="Expand sidebar" aria-label="Expand sidebar" aria-expanded="false">☰</button>
+      </div>
+
+      <nav class="menu collapse-hidden" aria-label="Navigation">
+        <button class="active" id="newChatBtn">New chat</button>
+        <button id="gad9ResultBtn">GAD-9 result</button>
+        <div class="saved-chats-menu-item">
+          <button id="savedChatsBtn">Saved chats</button>
+          <div class="chats" id="historyList">
+            <!-- Saved chats will be dynamically loaded here -->
+          </div>
+        </div>
+      </nav>
+    </div>
+
+    <div class="account-section" id="accountSection">
+      <button class="signup-btn" id="signUpBtn">Sign up</button>
+      <div class="account-profile">
+        <button class="account-trigger" id="accountTrigger" aria-label="Account menu">
+          <div class="account-avatar" id="accountAvatar">LD</div>
+          <div class="account-info collapse-hidden">
+            <div class="account-name" id="accountName">Lakshy Daga</div>
+            <div class="account-email" id="accountEmail">lakshyd1@gmail.com</div>
+          </div>
+        </button>
+        <div class="account-dropdown" id="accountDropdown">
+          <button class="account-dropdown-item" id="accountSettings">
+            <span class="account-dropdown-item-icon">⚙️</span>
+            <span>Settings</span>
+          </button>
+          <button class="account-dropdown-item" id="accountHelp">
+            <span class="account-dropdown-item-icon">❓</span>
+            <span>Help</span>
+          </button>
+          <button class="account-dropdown-item" id="accountLogout">
+            <span class="account-dropdown-item-icon">🚪</span>
+            <span>Log out</span>
+          </button>
+        </div>
+      <div class="help-menu" id="helpMenu" aria-hidden="true">
+        <button class="help-menu-item" data-help-action="help-center">
+          <span class="help-menu-icon">?</span>
+          <div class="help-menu-copy">
+            <span>Help center</span>
+            <small>Guides &amp; walkthroughs</small>
+          </div>
+          <span class="help-menu-arrow">↗</span>
+        </button>
+        <button class="help-menu-item" data-help-action="terms">
+          <span class="help-menu-icon">§</span>
+          <div class="help-menu-copy">
+            <span>Terms &amp; policies</span>
+            <small>Privacy, data usage, billing</small>
+          </div>
+        </button>
+        <button class="help-menu-item" data-help-action="report-bug">
+          <span class="help-menu-icon">!</span>
+          <div class="help-menu-copy">
+            <span>Report bug</span>
+            <small>Let us know what broke</small>
+          </div>
+        </button>
+      </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="site-brand" id="siteBrand">ALTHEA</div>
+      <div class="controls">
+        <button class="btn ghost" id="openExplore">Explore</button>
+        <button class="btn ghost" id="openContact">Contact us</button>
+        <button class="btn ghost" id="openMentor">Mentor</button>
+        <button class="btn primary" id="openSignUp">Sign up</button>
+      </div>
+    </div>
+
+    <div class="messages centered" id="messages" role="log" aria-live="polite">
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer" role="region" aria-label="Message composer">
+        <div class="left-actions">
+          <button class="plus-btn" id="plusBtn" aria-label="Add photos and files" title="Add photos and files">+</button>
+          <input type="file" id="fileInput" class="file-input" multiple accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar">
+        </div>
+        <textarea id="messageInput" placeholder="Chat with Althea"></textarea>
+        <button class="mic-btn" id="micBtn" aria-label="Voice input" title="Voice input">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+        <div class="send-btn-wrap">
+          <button class="send-btn" id="sendBtn" aria-label="Send message">➜</button>
+        </div>
+      </div>
+      <div class="file-preview" id="filePreview" style="display:none;"></div>
+      <div class="voice-response-choice" id="voiceResponseChoice" aria-hidden="true">
+        <div class="voice-choice-label">How should I reply?</div>
+        <div class="voice-choice-actions">
+          <button class="voice-choice-text" id="voiceResponseText">Text only</button>
+          <button class="voice-choice-voice" id="voiceResponseVoice">Voice reply</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="survey-card hidden" id="gadSurveyCard" role="dialog" aria-live="polite">
+  <button class="survey-close" id="closeSurveyCard" aria-label="Dismiss survey reminder">×</button>
+  <h4>Take the GAD-9 check?</h4>
+  <p>Spend two minutes to log today's anxiety level and personalise care.</p>
+  <div class="survey-actions">
+    <button class="maybe-btn" id="surveyMaybe">Maybe later</button>
+    <button class="start-btn" id="surveyStart">Start survey</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="signInModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="signInTitle">
+    <button class="modal-close" id="closeSignIn" aria-label="Close sign-in dialog">×</button>
+    <div>
+      <h2 id="signInTitle">Welcome back</h2>
+      <p>Sign in to sync your conversations across devices.</p>
+    </div>
+    <form id="signInForm">
+      <div>
+        <label for="signInEmail">Email address</label>
+        <input type="email" id="signInEmail" name="email" autocomplete="email" required />
+      </div>
+      <div>
+        <label for="signInPassword">Password</label>
+        <input type="password" id="signInPassword" name="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn primary">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="contactModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+    <button class="modal-close" id="closeContact" aria-label="Close contact dialog">×</button>
+    <div>
+      <h2 id="contactTitle">Contact us</h2>
+      <p>Send us a message and we will get back to you.</p>
+    </div>
+    <form id="contactForm">
+      <div>
+        <label for="contactName">Your name</label>
+        <input type="text" id="contactName" name="name" autocomplete="name" placeholder="Enter your name" />
+      </div>
+      <div>
+        <label for="contactEmail">Email address</label>
+        <input type="email" id="contactEmail" name="email" autocomplete="email" />
+      </div>
+      <div>
+        <label for="contactMessage">Message</label>
+        <input type="text" id="contactMessage" name="message" placeholder="How can we help?" />
+      </div>
+      <button type="submit" class="btn primary">Send</button>
+    </form>
+  </div>
+  </div>
+
+<div class="modal-backdrop" id="signUpModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="signUpTitle">
+    <button class="modal-close" id="closeSignUp" aria-label="Close sign-up dialog">×</button>
+    <div>
+      <h2 id="signUpTitle">Join Althea</h2>
+      <p>Already have an account?</p>
+      <div class="choice-row">
+        <button class="btn ghost" id="signUpExisting">I'm an existing user</button>
+        <button class="btn primary" id="signUpNew">I'm new here</button>
+      </div>
+    </div>
+    <form id="signUpForm" style="display:none;">
+      <div class="input-group">
+        <label for="signUpUsername">Full name</label>
+        <input type="text" id="signUpUsername" required placeholder="Taylor Morgan" />
+      </div>
+      <div class="input-group">
+        <label for="signUpPhone">Phone (optional)</label>
+        <input type="tel" id="signUpPhone" placeholder="+1 555 123 4567" />
+      </div>
+      <div class="input-group">
+        <label for="signUpEmail">Email</label>
+        <input type="email" id="signUpEmail" required placeholder="you@example.com" />
+      </div>
+      <div class="input-group">
+        <label for="signUpPassword">Password</label>
+        <input type="password" id="signUpPassword" required minlength="6" />
+      </div>
+      <div class="input-group">
+        <label for="signUpConfirm">Confirm password</label>
+        <input type="password" id="signUpConfirm" required minlength="6" />
+      </div>
+      <div id="signUpStatus" style="font-size:13px; color:#d35454;"></div>
+      <button type="submit" class="btn primary">Create account</button>
+    </form>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="settings-modal" id="settingsModal" aria-hidden="true">
+  <div class="settings-container">
+    <div class="settings-sidebar">
+      <button class="settings-close" id="closeSettings" aria-label="Close settings">×</button>
+      <nav class="settings-nav">
+        <button class="settings-nav-item active" data-section="general">
+          <span class="settings-nav-item-icon">⚙️</span>
+          <span>General</span>
+        </button>
+        <button class="settings-nav-item" data-section="data">
+          <span class="settings-nav-item-icon">🗄️</span>
+          <span>Data controls</span>
+        </button>
+        <button class="settings-nav-item" data-section="security">
+          <span class="settings-nav-item-icon">🔒</span>
+          <span>Security</span>
+        </button>
+        <button class="settings-nav-item" data-section="account">
+          <span class="settings-nav-item-icon">👤</span>
+          <span>Account</span>
+        </button>
+      </nav>
+    </div>
+    <div class="settings-content">
+      <!-- General Section -->
+      <div class="settings-section-content" id="settingsGeneral">
+        <h2>General</h2>
+        
+        <div class="settings-section">
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Appearance</div>
+            </div>
+            <div class="settings-row-control">
+              <select class="settings-select" id="appearanceSelect">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Accent color</div>
+            </div>
+            <div class="settings-row-control">
+              <select class="settings-select" id="accentColorSelect">
+                <option value="default">Default</option>
+                <option value="blue">Blue</option>
+                <option value="green">Green</option>
+                <option value="purple">Purple</option>
+                <option value="red">Red</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Language</div>
+            </div>
+            <div class="settings-row-control">
+              <select class="settings-select" id="languageSelect">
+                <option value="auto">Auto-detect</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="zh">Chinese</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Spoken language</div>
+            </div>
+            <div class="settings-row-control">
+              <select class="settings-select" id="spokenLanguageSelect">
+                <option value="auto">Auto-detect</option>
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="zh">Chinese</option>
+              </select>
+            </div>
+          </div>
+          <p class="settings-section-desc">For best results, select the language you mainly speak. If it's not listed, it may still be supported via auto-detection.</p>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Voice</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-play-btn" id="voicePlayBtn" aria-label="Play voice sample">▶</button>
+              <select class="settings-select" id="voiceSelect">
+                <option value="spruce">Spruce</option>
+                <option value="alloy">Alloy</option>
+                <option value="echo">Echo</option>
+                <option value="fable">Fable</option>
+                <option value="onyx">Onyx</option>
+                <option value="shimmer">Shimmer</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Security Section -->
+      <div class="settings-section-content" id="settingsSecurity" style="display:none;">
+        <h2>Security</h2>
+        
+        
+        
+        <div class="settings-section">
+          <h3 class="settings-section-title">Trusted Devices</h3>
+          <p class="settings-section-desc">When you sign in on another device, it will be added here and can automatically receive device prompts for signing in.</p>
+        </div>
+        
+        <div class="settings-section">
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Log out of this device</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn" id="logoutThisDevice">Log out</button>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Log out of all devices</div>
+              <div class="settings-row-label-desc">Log out of all active sessions across all devices, including your current session. It may take up to 30 minutes for other devices to be logged out.</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn danger" id="logoutAllDevices">Log out all</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h3 class="settings-section-title">Secure sign in with Althea</h3>
+          <p class="settings-section-desc">Sign in to websites and apps across the internet with the trusted security of Althea.</p>
+          <a href="#" class="settings-link" id="learnMoreLink">Learn more</a>
+          <div class="settings-info-box">
+            You haven't used Althea to sign into any websites or apps yet. Once you do, they'll show up here.
+          </div>
+        </div>
+      </div>
+      
+      <!-- Placeholder sections for other nav items -->
+      
+      <div class="settings-section-content" id="settingsData" style="display:none;">
+        <h2>Data controls</h2>
+        
+        <div class="settings-section">
+          <div class="settings-row-with-chevron" id="improveModelRow">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Improve the model for everyone</div>
+            </div>
+            <div class="settings-row-control">
+              <div class="settings-toggle active" id="improveModelToggle">
+                <div class="settings-toggle-slider"></div>
+              </div>
+              <span class="settings-chevron">›</span>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Shared links</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn-manage" id="manageSharedLinks">Manage</button>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Archived chats</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn-manage" id="manageArchivedChats">Manage</button>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Archive all chats</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn-manage" id="archiveAllChats">Archive all</button>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Delete all chats</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn danger" id="deleteAllChats">Delete all</button>
+            </div>
+          </div>
+          
+          <div class="settings-row">
+            <div class="settings-row-label">
+              <div class="settings-row-label-title">Export data</div>
+            </div>
+            <div class="settings-row-control">
+              <button class="settings-btn-manage" id="exportData">Export</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-section-content" id="settingsAccount" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+          <h2 style="margin:0;">Althea builder profile</h2>
+          <button class="settings-btn danger" id="deleteAccountBtn">Delete</button>
+        </div>
+        <p class="settings-section-desc" style="margin-bottom:24px;">Personalize your builder profile to connect with users of your Althea assistants. These settings apply to publicly shared Althea assistants.</p>
+        
+        <div class="settings-preview-box">
+          <div class="settings-preview-label">Preview</div>
+          <div class="settings-preview-icon">📦</div>
+          <div class="settings-preview-name" id="previewName">PlaceholderAlthea</div>
+          <div class="settings-preview-author" id="previewAuthor">By <span id="previewAuthorName">Sumit Kumar</span> 👤</div>
+        </div>
+        
+        <div class="settings-section">
+          <div class="settings-row">
+            <div class="settings-row-label" style="flex:1;">
+              <div class="settings-row-label-title">
+                Name
+                <span class="settings-info-icon" title="Your name as it appears on your Althea assistants">i</span>
+              </div>
+            </div>
+            <div class="settings-row-control">
+              <div class="settings-toggle active" id="nameToggle">
+                <div class="settings-toggle-slider"></div>
+              </div>
+            </div>
+          </div>
+          <input type="text" class="settings-input" id="builderNameInput" value="Sumit Kumar" placeholder="Enter your name">
+        </div>
+        
+        
+        
+        <div class="settings-section">
+          <h3 class="settings-section-title">Email</h3>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+            <span class="settings-link-icon">✉️</span>
+            <span id="accountEmailDisplay" style="color:#fff;">sumisuzi2005@gmail.com</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Saved Chats Modal -->
+<div class="saved-chats-modal" id="savedChatsModal" aria-hidden="true">
+  <div class="saved-chats-container">
+    <div class="saved-chats-header">
+      <h3>Saved Chats</h3>
+      <button class="saved-chats-close" id="closeSavedChats" aria-label="Close saved chats">×</button>
+    </div>
+    <div class="saved-chats-list" id="savedChatsList">
+      <!-- Saved chats will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<!-- Minimal JS to keep previous behaviors -->
+<script>
+  const container = document.querySelector('.container');
+  const leftRail = document.getElementById('leftRail');
+  const toggleSidebar = document.getElementById('toggleSidebar');
+  const messagesEl = document.getElementById('messages');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const openExploreBtn = document.getElementById('openExplore');
+  const openContactBtn = document.getElementById('openContact');
+  const openMentorBtn = document.getElementById('openMentor');
+  const openSignUpBtn = document.getElementById('openSignUp');
+  const signInModal = document.getElementById('signInModal');
+  const closeSignInBtn = document.getElementById('closeSignIn');
+  const signInForm = document.getElementById('signInForm');
+  const signInEmail = document.getElementById('signInEmail');
+  const contactModal = document.getElementById('contactModal');
+  const closeContactBtn = document.getElementById('closeContact');
+  const contactForm = document.getElementById('contactForm');
+  const contactName = document.getElementById('contactName');
+  const contactEmail = document.getElementById('contactEmail');
+  const newChatBtn = document.getElementById('newChatBtn');
+  const gad9ResultBtn = document.getElementById('gad9ResultBtn');
+  const savedChatsBtn = document.getElementById('savedChatsBtn');
+  const savedChatsModal = document.getElementById('savedChatsModal');
+  const savedChatsList = document.getElementById('savedChatsList');
+  const closeSavedChats = document.getElementById('closeSavedChats');
+  const historyList = document.getElementById('historyList');
+  const plusBtn = document.getElementById('plusBtn');
+  const fileInput = document.getElementById('fileInput');
+  const filePreview = document.getElementById('filePreview');
+  const micBtn = document.getElementById('micBtn');
+  const voiceResponseChoice = document.getElementById('voiceResponseChoice');
+  const voiceResponseText = document.getElementById('voiceResponseText');
+  const voiceResponseVoice = document.getElementById('voiceResponseVoice');
+  const surveyCard = document.getElementById('gadSurveyCard');
+  const surveyMaybeBtn = document.getElementById('surveyMaybe');
+  const surveyStartBtn = document.getElementById('surveyStart');
+  const surveyCloseBtn = document.getElementById('closeSurveyCard');
+
+  const appContext = window.APP_CONTEXT || {};
+  const serverUser = appContext.user || {};
+  const helpEmail = appContext.helpEmail || 'nischaykademane@gmail.com';
+  let currentSessionId = appContext.activeSessionId || null;
+
+  if(serverUser.name){
+    localStorage.setItem('userName', serverUser.name);
+    localStorage.setItem('isLoggedIn', 'true');
+  }
+  if(serverUser.email){
+    localStorage.setItem('userEmail', serverUser.email);
+  }
+
+  // Current conversation state
+  let currentChatId = null;
+  let currentMessages = [];
+  let selectedFiles = [];
+  let shouldSpeakResponse = false;
+  let pendingVoiceTranscript = null;
+  let lastInputMode = 'text';
+  let isRecording = false;
+
+  toggleSidebar.addEventListener('click', ()=>{
+    const isCollapsed = leftRail.classList.toggle('collapsed');
+    container.classList.toggle('collapsed', isCollapsed);
+    toggleSidebar.setAttribute('aria-expanded', String(!isCollapsed));
+    const label = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    toggleSidebar.setAttribute('aria-label', label);
+    toggleSidebar.setAttribute('title', label);
+    // Hide saved chats list when collapsing
+    if(isCollapsed){
+      historyList.classList.remove('show');
+    }
+  });
+
+  // Account dropdown functionality
+  const accountSection = document.getElementById('accountSection');
+  const signUpBtn = document.getElementById('signUpBtn');
+  const accountTrigger = document.getElementById('accountTrigger');
+  const accountDropdown = document.getElementById('accountDropdown');
+  const accountAvatar = document.getElementById('accountAvatar');
+  const accountName = document.getElementById('accountName');
+  const accountEmail = document.getElementById('accountEmail');
+  const accountSettings = document.getElementById('accountSettings');
+  const accountHelp = document.getElementById('accountHelp');
+  const accountLogout = document.getElementById('accountLogout');
+  const helpMenu = document.getElementById('helpMenu');
+  const signUpModal = document.getElementById('signUpModal');
+  const closeSignUpBtn = document.getElementById('closeSignUp');
+  const signUpExistingBtn = document.getElementById('signUpExisting');
+  const signUpNewBtn = document.getElementById('signUpNew');
+  const signUpForm = document.getElementById('signUpForm');
+  const signUpStatus = document.getElementById('signUpStatus');
+
+  function updateAccountInfo(){
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const userName = localStorage.getItem('userName');
+    const userEmail = localStorage.getItem('userEmail');
+    
+    if(isLoggedIn && userName){
+      accountSection.classList.add('logged-in');
+      accountName.textContent = userName;
+      const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      accountAvatar.textContent = initials;
+    } else {
+      accountSection.classList.remove('logged-in');
+    }
+    if(userEmail){
+      accountEmail.textContent = userEmail;
+    }
+    refreshAuthUI();
+  }
+
+  function refreshAuthUI(){
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if(openSignUpBtn){
+      openSignUpBtn.style.display = isLoggedIn ? 'none' : 'inline-flex';
+    }
+    if(signUpBtn){
+      signUpBtn.textContent = 'Sign up';
+    }
+  }
+
+  // Sign up button functionality
+  signUpBtn.addEventListener('click', () => {
+    openSignUpModal();
+  });
+
+  accountTrigger.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    accountDropdown.classList.toggle('show');
+  });
+
+  document.addEventListener('click', (e)=>{
+    if(!accountTrigger.contains(e.target) && !accountDropdown.contains(e.target)){
+      accountDropdown.classList.remove('show');
+    }
+    if(helpMenu && !helpMenu.contains(e.target) && !accountHelp.contains(e.target)){
+      closeHelpMenu();
+    }
+  });
+
+  accountSettings.addEventListener('click', ()=>{
+    accountDropdown.classList.remove('show');
+    openSettingsModal();
+  });
+
+  function closeHelpMenu(){
+    if(helpMenu){
+      helpMenu.classList.remove('open');
+      helpMenu.setAttribute('aria-hidden','true');
+    }
+  }
+
+  accountHelp.addEventListener('click', (event)=>{
+    event.stopPropagation();
+    const willOpen = !(helpMenu && helpMenu.classList.contains('open'));
+    closeHelpMenu();
+    if(willOpen && helpMenu){
+      helpMenu.classList.add('open');
+      helpMenu.setAttribute('aria-hidden','false');
+    }
+  });
+
+  accountLogout.addEventListener('click', ()=>{
+    accountDropdown.classList.remove('show');
+    closeHelpMenu();
+    
+    // Don't delete saved chats - just hide them by clearing login state
+    // The getSavedChats() function will return empty array when not logged in
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userEmail');
+    sessionStorage.removeItem('hasShownWelcome');
+    
+    // Clear current chat state
+    currentChatId = null;
+    currentMessages = [];
+    
+    messagesEl.innerHTML = '';
+    appendMessage('You have been logged out. Please sign in again to continue.', 'bot');
+    updateAccountInfo();
+    updateHistoryList();
+    // Clear Account settings fields when logging out
+    const accountEmailDisplay = document.getElementById('accountEmailDisplay');
+    const builderNameInput = document.getElementById('builderNameInput');
+    const previewAuthorName = document.getElementById('previewAuthorName');
+    if(accountEmailDisplay){ accountEmailDisplay.textContent = ''; }
+    if(builderNameInput){ builderNameInput.value = ''; }
+    if(previewAuthorName){ previewAuthorName.textContent = 'Sumit Kumar'; }
+  });
+
+  if(helpMenu){
+    helpMenu.querySelectorAll('[data-help-action]').forEach(item=>{
+      item.addEventListener('click', ()=>{
+        const action = item.getAttribute('data-help-action');
+        handleHelpAction(action);
+        closeHelpMenu();
+      });
+    });
+  }
+
+  function handleHelpAction(action){
+    switch(action){
+      case 'help-center':
+        window.location.href = `mailto:${helpEmail}?subject=I%20need%20support`;
+        appendMessage('Opening your email so you can contact our help desk directly.', 'bot');
+        break;
+      case 'terms':
+        window.open('/terms', '_blank');
+        appendMessage('I opened the terms & policies summary in a new tab for you.', 'bot');
+        break;
+      case 'report-bug':
+        window.location.href = `mailto:${helpEmail}?subject=Bug%20report`;
+        appendMessage('Tell me what broke in the email draft that just opened—we typically fix priority bugs within a day.', 'bot');
+        break;
+      default:
+        appendMessage('Let me know how else I can help.', 'bot');
+    }
+  }
+
+  updateAccountInfo();
+
+  function openSignInModal(){
+    signInModal.classList.add('open');
+    signInModal.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(()=> signInEmail.focus());
+  }
+
+  function closeSignInModal(){
+    signInModal.classList.remove('open');
+    signInModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if(openSignUpBtn){
+    openSignUpBtn.addEventListener('click', (event)=>{
+      event.preventDefault();
+      openSignUpModal();
+    });
+  }
+  if(openExploreBtn){
+    openExploreBtn.addEventListener('click', ()=>{
+      window.location.href = '/overview';
+    });
+  }
+
+  if(openMentorBtn){
+    openMentorBtn.addEventListener('click', ()=>{
+      window.location.href = '/mentor';
+    });
+  }
+
+  function openContactModal(){
+    const userName = localStorage.getItem('userName') || '';
+    const userEmail = localStorage.getItem('userEmail') || '';
+    if(userName) contactName.value = userName;
+    if(userEmail) contactEmail.value = userEmail;
+    contactModal.classList.add('open');
+    contactModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeContactModal(){
+    contactModal.classList.remove('open');
+    contactModal.setAttribute('aria-hidden', 'true');
+  }
+
+  openContactBtn.addEventListener('click', (event)=>{
+    event.preventDefault();
+    openContactModal();
+  });
+
+  closeContactBtn.addEventListener('click', closeContactModal);
+
+  contactModal.addEventListener('click', (event)=>{
+    if(event.target === contactModal){
+      closeContactModal();
+    }
+  });
+
+  function openSignUpModal(){
+    if(!signUpModal) return;
+    if(signUpForm){
+      signUpForm.reset();
+      signUpForm.style.display = 'none';
+    }
+    if(signUpStatus){
+      signUpStatus.textContent = '';
+      signUpStatus.style.color = '#d35454';
+    }
+    signUpModal.classList.add('open');
+    signUpModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSignUpModal(){
+    if(!signUpModal) return;
+    signUpModal.classList.remove('open');
+    signUpModal.setAttribute('aria-hidden', 'true');
+  }
+
+  if(closeSignUpBtn){
+    closeSignUpBtn.addEventListener('click', closeSignUpModal);
+  }
+  if(signUpModal){
+    signUpModal.addEventListener('click', (event)=>{
+      if(event.target === signUpModal){
+        closeSignUpModal();
+      }
+    });
+  }
+  if(signUpExistingBtn){
+    signUpExistingBtn.addEventListener('click', ()=>{
+      closeSignUpModal();
+      openSignInModal();
+    });
+  }
+  if(signUpNewBtn){
+    signUpNewBtn.addEventListener('click', ()=>{
+      if(signUpForm){
+        signUpForm.style.display = 'flex';
+        if(signUpStatus){
+          signUpStatus.textContent = '';
+          signUpStatus.style.color = '#d35454';
+        }
+      }
+    });
+  }
+  if(signUpForm){
+    signUpForm.addEventListener('submit', (event)=>{
+      event.preventDefault();
+      const name = document.getElementById('signUpUsername').value.trim();
+      const phone = document.getElementById('signUpPhone').value.trim();
+      const email = document.getElementById('signUpEmail').value.trim();
+      const password = document.getElementById('signUpPassword').value;
+      const confirm = document.getElementById('signUpConfirm').value;
+      if(!name || !email || !password){
+        if(signUpStatus){ signUpStatus.textContent = 'Please complete required fields.'; }
+        return;
+      }
+      if(password !== confirm){
+        if(signUpStatus){ signUpStatus.textContent = 'Passwords do not match.'; }
+        return;
+      }
+      localStorage.setItem('userName', name);
+      localStorage.setItem('userEmail', email);
+      if(phone){
+        localStorage.setItem('userPhone', phone);
+      }
+      localStorage.setItem('isLoggedIn', 'true');
+      showWelcomeMessage(name);
+      if(signUpStatus){
+        signUpStatus.style.color = '#2b4631';
+        signUpStatus.textContent = 'Account created — signing you in.';
+      }
+      updateAccountInfo();
+      updateHistoryList();
+      setTimeout(()=>{
+        closeSignUpModal();
+      }, 700);
+    });
+  }
+
+  function openSurveyCard(){
+    if(!surveyCard) return;
+    if(sessionStorage.getItem('gad9Dismissed') === 'true') return;
+    surveyCard.classList.remove('hidden');
+  }
+  function hideSurveyCard(){
+    if(!surveyCard) return;
+    surveyCard.classList.add('hidden');
+  }
+  if(surveyMaybeBtn){
+    surveyMaybeBtn.addEventListener('click', ()=>{
+      hideSurveyCard();
+      sessionStorage.setItem('gad9Dismissed', 'true');
+    });
+  }
+  if(surveyCloseBtn){
+    surveyCloseBtn.addEventListener('click', ()=>{
+      hideSurveyCard();
+      sessionStorage.setItem('gad9Dismissed', 'true');
+    });
+  }
+  if(surveyStartBtn){
+    surveyStartBtn.addEventListener('click', ()=>{
+      sessionStorage.setItem('gad9Dismissed', 'true');
+      window.location.href = '/gad9';
+    });
+  }
+
+  contactForm.addEventListener('submit', (event)=>{
+    event.preventDefault();
+    const form = new FormData(contactForm);
+    const name = form.get('name') || localStorage.getItem('userName') || 'User';
+    appendMessage('Thanks for reaching out, '+escapeHtml(name)+'. We will contact you soon.', 'bot');
+    contactForm.reset();
+    closeContactModal();
+  });
+
+  closeSignInBtn.addEventListener('click', closeSignInModal);
+
+  signInModal.addEventListener('click', (event)=>{
+    if(event.target === signInModal){
+      closeSignInModal();
+    }
+  });
+
+  document.addEventListener('keydown', (event)=>{
+    if(event.key === 'Escape'){
+      if(signInModal.classList.contains('open')){
+        closeSignInModal();
+      }
+      if(contactModal.classList.contains('open')){
+        closeContactModal();
+      }
+      if(signUpModal && signUpModal.classList.contains('open')){
+        closeSignUpModal();
+      }
+    }
+  });
+
+  function showWelcomeMessage(name){
+    messagesEl.innerHTML = '';
+    messagesEl.classList.add('centered');
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.className = 'msg welcome-msg';
+    welcomeDiv.innerHTML = `
+      <div>Welcome to Althea!</div>
+      <div class="welcome-name">${name ? escapeHtml(name) : ''}</div>
+      <div class="welcome-subtitle">I'm here to support you on your wellness journey. How can I help you today?</div>
+    `;
+    messagesEl.appendChild(welcomeDiv);
+    
+    // Add quick suggestions
+    const suggestionsDiv = document.createElement('div');
+    suggestionsDiv.className = 'quick-suggestions';
+    suggestionsDiv.id = 'quickSuggestions';
+    suggestionsDiv.innerHTML = `
+      <div class="quick-suggestions-title">Quick suggestions:</div>
+      <div class="quick-suggestions-list">
+        <button class="quick-suggestion-btn" data-suggestion="I'm feeling sad">I'm feeling sad</button>
+        <button class="quick-suggestion-btn" data-suggestion="I'm anxious">I'm anxious</button>
+        <button class="quick-suggestion-btn" data-suggestion="I'm having anxiety">I'm having anxiety</button>
+        <button class="quick-suggestion-btn" data-suggestion="I'm feeling stressed">I'm feeling stressed</button>
+      </div>
+    `;
+    messagesEl.appendChild(suggestionsDiv);
+    
+    // Add event listeners to suggestion buttons
+    const suggestionButtons = suggestionsDiv.querySelectorAll('.quick-suggestion-btn');
+    suggestionButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const suggestionText = btn.getAttribute('data-suggestion');
+        // Remove welcome message and suggestions
+        messagesEl.classList.remove('centered');
+        welcomeDiv.remove();
+        suggestionsDiv.remove();
+        // Start conversation with the suggestion
+        appendMessage(suggestionText, 'me');
+        // Trigger bot response
+        setTimeout(() => {
+          appendMessage('Thanks for sharing — I hear you. Would you like a breathing exercise or a quick grounding technique?', 'bot');
+        }, 800 + Math.random() * 800);
+      });
+    });
+    
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    localStorage.setItem('userName', name);
+    localStorage.setItem('isLoggedIn', 'true');
+  }
+
+  signInForm.addEventListener('submit', (event)=>{
+    event.preventDefault();
+    const formData = new FormData(signInForm);
+    const email = formData.get('email');
+    // Extract name from email (username part before @)
+    const name = email ? email.split('@')[0] : '';
+    showWelcomeMessage(name);
+    localStorage.setItem('userEmail', email);
+    localStorage.setItem('userName', name);
+    localStorage.setItem('isLoggedIn', 'true');
+    signInForm.reset();
+    closeSignInModal();
+    updateAccountInfo();
+    // Restore saved chats for this user
+    updateHistoryList();
+    // Reflect logged-in user in Account settings UI
+    const accountEmailDisplay = document.getElementById('accountEmailDisplay');
+    const builderNameInput = document.getElementById('builderNameInput');
+    const previewAuthorName = document.getElementById('previewAuthorName');
+    if(accountEmailDisplay){ accountEmailDisplay.textContent = email; }
+    if(builderNameInput){ builderNameInput.value = name; }
+    if(previewAuthorName){ previewAuthorName.textContent = name; }
+  });
+
+  function formatFileSize(bytes){
+    if(bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  function getFileIcon(fileType){
+    if(fileType.startsWith('image/')) return '🖼️';
+    if(fileType.includes('pdf')) return '📄';
+    if(fileType.includes('word') || fileType.includes('document')) return '📝';
+    if(fileType.includes('zip') || fileType.includes('rar')) return '📦';
+    return '📎';
+  }
+
+  function displayFilePreview(){
+    if(selectedFiles.length === 0){
+      filePreview.style.display = 'none';
+      return;
+    }
+    
+    filePreview.style.display = 'flex';
+    filePreview.innerHTML = '';
+    
+    selectedFiles.forEach((file, index) => {
+      const fileItem = document.createElement('div');
+      fileItem.className = 'file-item';
+      
+      if(file.type.startsWith('image/')){
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          fileItem.insertBefore(img, fileItem.firstChild);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const icon = document.createElement('span');
+        icon.textContent = getFileIcon(file.type);
+        icon.style.fontSize = '20px';
+        fileItem.appendChild(icon);
+      }
+      
+      const fileInfo = document.createElement('div');
+      fileInfo.className = 'file-item-info';
+      fileInfo.innerHTML = `
+        <div class="file-item-name">${escapeHtml(file.name)}</div>
+        <div class="file-item-size">${formatFileSize(file.size)}</div>
+      `;
+      fileItem.appendChild(fileInfo);
+      
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'file-item-remove';
+      removeBtn.innerHTML = '×';
+      removeBtn.addEventListener('click', () => {
+        selectedFiles.splice(index, 1);
+        displayFilePreview();
+      });
+      fileItem.appendChild(removeBtn);
+      
+      filePreview.appendChild(fileItem);
+    });
+  }
+
+  function appendMessage(text, from='bot', files=[]){
+    // Switch from centered to normal alignment when user sends first message
+    if(from === 'me' && messagesEl.classList.contains('centered')){
+      messagesEl.classList.remove('centered');
+      // Remove welcome message if it exists
+      const welcomeMsg = messagesEl.querySelector('.welcome-msg');
+      if(welcomeMsg){
+        welcomeMsg.remove();
+      }
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (from==='me' ? 'from-me' : 'from-bot');
+    const timestamp = Date.now();
+    const relativeTime = getRelativeTime(timestamp);
+    
+    let attachmentsHtml = '';
+    if(files && files.length > 0){
+      files.forEach(file => {
+        if(file.type && file.type.startsWith('image/')){
+          attachmentsHtml += `<div class="msg-attachment"><img src="${file.url || file.dataUrl}" alt="${escapeHtml(file.name)}"></div>`;
+        } else {
+          attachmentsHtml += `
+            <div class="msg-attachment">
+              <div class="msg-attachment-file">
+                <span class="msg-attachment-file-icon">${getFileIcon(file.type || '')}</span>
+                <div class="msg-attachment-file-info">
+                  <div class="msg-attachment-file-name">${escapeHtml(file.name)}</div>
+                  <div class="msg-attachment-file-size">${file.size ? formatFileSize(file.size) : ''}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      });
+    }
+    
+    wrap.innerHTML = `
+      ${text ? `<div>${escapeHtml(text)}</div>` : ''}
+      ${attachmentsHtml}
+      <div class="meta">${from==='me' ? 'You' : 'Bot'} • ${relativeTime}</div>
+    `;
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    
+    // Save message to current conversation
+    const messageData = {text, from, timestamp: timestamp};
+    if(files && files.length > 0){
+      messageData.files = files.map(file => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl: file.dataUrl || file.url
+      }));
+    }
+    currentMessages.push(messageData);
+    saveCurrentChat();
+  }
+
+  // Chat management functions
+  function getSavedChats(){
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if(!isLoggedIn) return [];
+    
+    const userEmail = localStorage.getItem('userEmail');
+    if(!userEmail) return [];
+    
+    const key = `savedChats_${userEmail}`;
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  }
+
+  function saveChats(chats){
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if(!isLoggedIn) return;
+    
+    const userEmail = localStorage.getItem('userEmail');
+    if(!userEmail) return;
+    
+    const key = `savedChats_${userEmail}`;
+    localStorage.setItem(key, JSON.stringify(chats));
+  }
+
+  function saveCurrentChat(){
+    if(currentMessages.length === 0) return;
+    
+    const chats = getSavedChats();
+    const title = currentMessages.find(m => m.from === 'me')?.text || 'New Chat';
+    const preview = currentMessages.find(m => m.from === 'me')?.text || '';
+    
+    if(currentChatId){
+      // Update existing chat
+      const index = chats.findIndex(c => c.id === currentChatId);
+      if(index !== -1){
+        chats[index] = {
+          id: currentChatId,
+          title: title.substring(0, 50),
+          preview: preview.substring(0, 100),
+          messages: [...currentMessages],
+          updatedAt: Date.now()
+        };
+      }
+    } else {
+      // Create new chat
+      currentChatId = 'chat_' + Date.now();
+      chats.unshift({
+        id: currentChatId,
+        title: title.substring(0, 50),
+        preview: preview.substring(0, 100),
+        messages: [...currentMessages],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+      // Keep only last 50 chats
+      if(chats.length > 50){
+        chats = chats.slice(0, 50);
+      }
+    }
+    
+    saveChats(chats);
+    updateHistoryList();
+  }
+
+  function loadChat(chatId){
+    const chats = getSavedChats();
+    const chat = chats.find(c => c.id === chatId);
+    if(!chat) return;
+    
+    currentChatId = chatId;
+    currentMessages = [...chat.messages];
+    
+    // Clear and load messages
+    messagesEl.innerHTML = '';
+    messagesEl.classList.remove('centered');
+    
+    chat.messages.forEach(msg => {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg ' + (msg.from === 'me' ? 'from-me' : 'from-bot');
+      const relativeTime = getRelativeTime(msg.timestamp);
+      
+      let attachmentsHtml = '';
+      if(msg.files && msg.files.length > 0){
+        msg.files.forEach(file => {
+          if(file.type && file.type.startsWith('image/')){
+            attachmentsHtml += `<div class="msg-attachment"><img src="${file.dataUrl || file.url}" alt="${escapeHtml(file.name)}"></div>`;
+          } else {
+            attachmentsHtml += `
+              <div class="msg-attachment">
+                <div class="msg-attachment-file">
+                  <span class="msg-attachment-file-icon">${getFileIcon(file.type || '')}</span>
+                  <div class="msg-attachment-file-info">
+                    <div class="msg-attachment-file-name">${escapeHtml(file.name)}</div>
+                    <div class="msg-attachment-file-size">${file.size ? formatFileSize(file.size) : ''}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        });
+      }
+      
+      wrap.innerHTML = `
+        ${msg.text ? `<div>${escapeHtml(msg.text)}</div>` : ''}
+        ${attachmentsHtml}
+        <div class="meta">${msg.from === 'me' ? 'You' : 'Bot'} • ${relativeTime}</div>
+      `;
+      messagesEl.appendChild(wrap);
+    });
+    
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    updateHistoryList();
+  }
+
+  async function ensureActiveSession(){
+    if(!currentSessionId){
+      await createServerSession();
+    }
+  }
+
+  async function createServerSession(title){
+    try{
+      const response = await fetch('/chat/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title })
+      });
+      const data = await response.json().catch(() => ({}));
+      if(!response.ok){
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      currentSessionId = data.id;
+      return data;
+    } catch(error){
+      console.error('Failed to create chat session:', error);
+      appendMessage('Something went wrong while creating a new chat. Please refresh and try again.', 'bot');
+      throw error;
+    }
+  }
+
+  async function startNewChat(){
+    // Save current chat if it has messages
+    if(currentMessages.length > 0){
+      saveCurrentChat();
+    }
+    
+    // Reset state
+    currentChatId = null;
+    currentMessages = [];
+    selectedFiles = [];
+    displayFilePreview();
+    hasStartedTyping = false; // Reset typing flag for new chat
+    
+    // Clear messages
+    messagesEl.innerHTML = '';
+    messagesEl.classList.add('centered');
+    
+    await createServerSession();
+
+    // Show welcome message if logged in
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const userName = localStorage.getItem('userName');
+    if(isLoggedIn && userName){
+      showWelcomeMessage(userName);
+    }
+    
+    updateHistoryList();
+  }
+
+  async function loadExistingMessages(){
+    // Legacy helper kept to avoid errors in older flows.
+    // Server now starts a fresh session on every visit, so we don't import messages here.
+    return Promise.resolve();
+  }
+
+  function updateHistoryList(){
+    const chats = getSavedChats();
+    historyList.innerHTML = '';
+    
+    // Show last 8 chats in sidebar
+    chats.slice(0, 8).forEach(chat => {
+      const item = document.createElement('div');
+      item.className = 'item' + (chat.id === currentChatId ? ' active' : '');
+      item.textContent = chat.title;
+      item.addEventListener('click', () => {
+        loadChat(chat.id);
+      });
+      historyList.appendChild(item);
+    });
+  }
+
+  function renderSavedChatsModal(){
+    const chats = getSavedChats();
+    savedChatsList.innerHTML = '';
+    
+    if(chats.length === 0){
+      savedChatsList.innerHTML = '<div class="saved-chats-empty">No saved chats yet. Start a conversation to save it!</div>';
+      return;
+    }
+    
+    chats.forEach(chat => {
+      const item = document.createElement('div');
+      item.className = 'saved-chat-item';
+      item.innerHTML = `
+        <div class="saved-chat-title">${escapeHtml(chat.title)}</div>
+        <div class="saved-chat-preview">${escapeHtml(chat.preview)}</div>
+        <div class="saved-chat-date">${new Date(chat.updatedAt || chat.createdAt).toLocaleString()}</div>
+      `;
+      item.addEventListener('click', () => {
+        loadChat(chat.id);
+        closeSavedChatsModal();
+      });
+      savedChatsList.appendChild(item);
+    });
+  }
+
+  function openSavedChatsModal(){
+    renderSavedChatsModal();
+    savedChatsModal.classList.add('open');
+    savedChatsModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSavedChatsModal(){
+    savedChatsModal.classList.remove('open');
+    savedChatsModal.setAttribute('aria-hidden', 'true');
+  }
+
+  // Event listeners
+  newChatBtn.addEventListener('click', () => {
+    startNewChat().catch(err => console.error('Failed to start new chat', err));
+    // Hide saved chats list
+    historyList.classList.remove('show');
+    // Update active state
+    document.querySelectorAll('.menu button').forEach(btn => btn.classList.remove('active'));
+    newChatBtn.classList.add('active');
+  });
+
+  if(gad9ResultBtn){
+    gad9ResultBtn.addEventListener('click', () => {
+      window.location.href = '/gad9';
+    });
+  }
+
+  savedChatsBtn.addEventListener('click', () => {
+    window.location.href = '/chat/history';
+  });
+
+  closeSavedChats.addEventListener('click', closeSavedChatsModal);
+  
+  savedChatsModal.addEventListener('click', (event) => {
+    if(event.target === savedChatsModal){
+      closeSavedChatsModal();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if(event.key === 'Escape' && savedChatsModal.classList.contains('open')){
+      closeSavedChatsModal();
+    }
+  });
+  function escapeHtml(s){ return (''+s).replace(/[&<>"']/g,ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+  function getRelativeTime(timestamp){
+    const now = Date.now();
+    const diff = now - timestamp;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if(seconds < 60){
+      return 'just now';
+    } else if(minutes < 60){
+      return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+    } else if(hours < 24){
+      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    } else if(days < 7){
+      return `${days} day${days === 1 ? '' : 's'} ago`;
+    } else {
+      const weeks = Math.floor(days / 7);
+      if(weeks < 4){
+        return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+      } else {
+        const months = Math.floor(days / 30);
+        if(months < 12){
+          return `${months} month${months === 1 ? '' : 's'} ago`;
+        } else {
+          const years = Math.floor(days / 365);
+          return `${years} year${years === 1 ? '' : 's'} ago`;
+        }
+      }
+    }
+  }
+
+  function sendMessage(){
+    const text = messageInput.value.trim();
+    const filesToSend = [...selectedFiles];
+    
+    if(!text && filesToSend.length === 0) return;
+    
+    if(filesToSend.length > 0){
+      appendMessage('Attachments are not supported in this build yet. I’ll save only the text you send.', 'bot');
+      selectedFiles = [];
+      displayFilePreview();
+    }
+    lastInputMode = 'text';
+    shouldSpeakResponse = false;
+    sendMessageWithFiles(text, { inputMode: 'text', responseMode: 'text' });
+  }
+
+  async function sendMessageWithFiles(text, options = {}){
+    const inputMode = (options.inputMode || (lastInputMode === 'voice' ? 'voice' : 'text')).toLowerCase();
+    const responseMode = (options.responseMode || (shouldSpeakResponse ? 'voice' : 'text')).toLowerCase();
+    
+    appendMessage(text || '', 'me', []);
+    messageInput.value='';
+    messageInput.style.height = '20px';
+    selectedFiles = [];
+    displayFilePreview();
+    await ensureActiveSession();
+    
+    const typing = document.createElement('div'); 
+    typing.className='msg from-bot'; 
+    typing.innerHTML=`<div class="meta">Althea is thinking…</div>`; 
+    messagesEl.appendChild(typing); 
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    
+    try{
+      const response = await fetch('/chat/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ 
+          message: text,
+          session_id: currentSessionId,
+          input_mode: inputMode,
+          response_mode: responseMode
+        })
+      });
+      
+      if(!response.ok){
+        let errorDetail = '';
+        try{
+          const errJson = await response.json();
+          errorDetail = errJson?.error || '';
+        } catch(_err){
+          // ignore JSON parse failures
+        }
+        throw new Error(errorDetail || `Request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      let botReply = null;
+      if(Array.isArray(data?.messages)){
+        botReply = data.messages.find(msg => msg.sender === 'bot');
+      } else if(data && data.message){
+        botReply = data;
+      }
+      
+      if(botReply && botReply.message){
+        appendMessage(botReply.message, 'bot');
+        if(shouldSpeakResponse){
+          await speakBotReply(botReply.message);
+        }
+        shouldSpeakResponse = false;
+      } else {
+        appendMessage('I received your message but could not show a reply just yet.', 'bot');
+      }
+    } catch(error){
+      console.error('Failed to send chat message:', error);
+      appendMessage('Sorry, I could not reach our support service. Please try again in a moment.', 'bot');
+    } finally {
+      typing.remove();
+    }
+  }
+
+  // File upload functionality
+  plusBtn.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      // Check file size (limit to 10MB)
+      if(file.size > 10 * 1024 * 1024){
+        appendMessage(`File "${file.name}" is too large. Maximum size is 10MB.`, 'bot');
+        return;
+      }
+      selectedFiles.push(file);
+    });
+    displayFilePreview();
+    fileInput.value = ''; // Reset input to allow selecting same file again
+  });
+
+  // Function to hide welcome message and suggestions when user starts typing
+  function hideWelcomeAndSuggestions(){
+    const welcomeMsg = messagesEl.querySelector('.welcome-msg');
+    const suggestionsDiv = document.getElementById('quickSuggestions');
+    
+    if(welcomeMsg || suggestionsDiv){
+      messagesEl.classList.remove('centered');
+      if(welcomeMsg){
+        welcomeMsg.remove();
+      }
+      if(suggestionsDiv){
+        suggestionsDiv.remove();
+      }
+    }
+  }
+
+  // Voice recording and playback powered by ChatGPT voice APIs (with browser fallback)
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let listeningMessage = null;
+  let browserRecognition = null;
+
+  if(voiceResponseChoice){
+    voiceResponseText.addEventListener('click', () => finalizeVoiceChoice('text'));
+    voiceResponseVoice.addEventListener('click', () => finalizeVoiceChoice('voice'));
+  }
+
+  function finalizeVoiceChoice(mode){
+    voiceResponseChoice.classList.remove('show');
+    voiceResponseChoice.setAttribute('aria-hidden','true');
+    shouldSpeakResponse = mode === 'voice';
+    const transcript = pendingVoiceTranscript;
+    pendingVoiceTranscript = null;
+    if(transcript){
+      messageInput.value = transcript;
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+      hideWelcomeAndSuggestions();
+      lastInputMode = 'voice';
+      sendMessageWithFiles(transcript, { inputMode: 'voice', responseMode: mode }).catch(err => console.error(err));
+    }
+  }
+
+  function promptVoiceResponseChoice(transcript){
+    voiceResponseChoice.classList.add('show');
+    voiceResponseChoice.setAttribute('aria-hidden','false');
+    messageInput.value = transcript;
+    messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+    hideWelcomeAndSuggestions();
+  }
+
+  function showListeningMessage(){
+    removeListeningMessage();
+    listeningMessage = document.createElement('div');
+    listeningMessage.className = 'msg from-bot';
+    listeningMessage.innerHTML = '<div class="meta">Listening... Speak now</div>';
+    messagesEl.appendChild(listeningMessage);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function removeListeningMessage(){
+    if(listeningMessage){
+      listeningMessage.remove();
+      listeningMessage = null;
+    }
+  }
+
+  async function startRecording(){
+    if(isRecording){
+      stopRecording();
+      return;
+    }
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorder.ondataavailable = (event) => {
+        if(event.data.size > 0){
+          recordedChunks.push(event.data);
+        }
+      };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        if(recordedChunks.length){
+          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+          sendAudioForTranscription(blob);
+        }
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      micBtn.classList.add('recording');
+      showListeningMessage();
+    } catch(error){
+      console.error('MediaRecorder not available:', error);
+      if(!startBrowserSpeechRecognitionFallback()){
+        appendMessage('Please allow microphone access to use voice input.', 'bot');
+      }
+    }
+  }
+
+  function stopRecording(){
+    if(mediaRecorder && isRecording){
+      mediaRecorder.stop();
+    }
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    removeListeningMessage();
+  }
+
+  async function sendAudioForTranscription(blob){
+    const formData = new FormData();
+    formData.append('audio', blob, 'voice-input.webm');
+    try{
+      const response = await fetch('/api/voice/transcribe', {
+        method: 'POST',
+        body: formData
+      });
+      if(response.status === 503){
+        if(!startBrowserSpeechRecognitionFallback()){
+          appendMessage('Voice services are temporarily unavailable. Please try again later.', 'bot');
+        }
+        return;
+      }
+      const data = await response.json().catch(() => ({}));
+      if(!response.ok){
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      const transcript = (data.text || '').trim();
+      if(transcript){
+        pendingVoiceTranscript = transcript;
+        promptVoiceResponseChoice(transcript);
+      } else {
+        appendMessage('I could not capture what you said. Could you try again?', 'bot');
+      }
+    } catch(error){
+      console.error('Transcription error:', error);
+      if(!startBrowserSpeechRecognitionFallback()){
+        appendMessage('Unable to transcribe audio right now.', 'bot');
+      }
+    }
+  }
+
+  function startBrowserSpeechRecognitionFallback(){
+    if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+      return false;
+    }
+    if(!browserRecognition){
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      browserRecognition = new SpeechRecognition();
+      browserRecognition.continuous = false;
+      browserRecognition.interimResults = false;
+      browserRecognition.lang = 'en-US';
+      browserRecognition.maxAlternatives = 1;
+      browserRecognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript || '';
+        pendingVoiceTranscript = transcript.trim();
+        removeListeningMessage();
+        if(pendingVoiceTranscript){
+          promptVoiceResponseChoice(pendingVoiceTranscript);
+        }
+      };
+      browserRecognition.onerror = (event) => {
+        console.error('Browser speech recognition error:', event.error);
+        removeListeningMessage();
+      };
+      browserRecognition.onend = () => {
+        isRecording = false;
+        micBtn.classList.remove('recording');
+      };
+    }
+    try{
+      browserRecognition.start();
+      isRecording = true;
+      micBtn.classList.add('recording');
+      showListeningMessage();
+      return true;
+    } catch(error){
+      console.error('Unable to start browser speech recognition:', error);
+      return false;
+    }
+  }
+
+  micBtn.addEventListener('click', () => {
+    if(isRecording){
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
+  async function speakBotReply(text){
+    if(!text){
+      return;
+    }
+    try{
+      const response = await fetch('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice: 'alloy' })
+      });
+      if(response.status === 503){
+        speakWithBrowser(text);
+        return;
+      }
+      const data = await response.json().catch(() => ({}));
+      if(!response.ok){
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      playAudioFromBase64(data.audio, data.mime || 'audio/mpeg');
+    } catch(error){
+      console.error('Voice playback failed:', error);
+      speakWithBrowser(text);
+    } finally {
+      shouldSpeakResponse = false;
+    }
+  }
+
+  function playAudioFromBase64(audioString, mime){
+    if(!audioString){
+      return;
+    }
+    const byteCharacters = atob(audioString);
+    const byteNumbers = new Array(byteCharacters.length);
+    for(let i = 0; i < byteCharacters.length; i++){
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mime || 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(blob);
+    const audio = new Audio(audioUrl);
+    audio.play();
+    audio.addEventListener('ended', () => URL.revokeObjectURL(audioUrl));
+  }
+
+  function speakWithBrowser(text){
+    if(!('speechSynthesis' in window)){
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  let hasStartedTyping = false;
+  
+  messageInput.addEventListener('keydown', (e)=>{
+    // Hide welcome and suggestions when user presses any key (except special keys)
+    if(!hasStartedTyping && !['Tab', 'Escape', 'Meta', 'Control', 'Alt', 'Shift'].includes(e.key)){
+      hasStartedTyping = true;
+      hideWelcomeAndSuggestions();
+    }
+    lastInputMode = 'text';
+    shouldSpeakResponse = false;
+    
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault(); 
+      sendMessage();
+    }
+    // Shift+Enter allows default behavior (new line)
+  });
+
+  messageInput.addEventListener('input', ()=>{
+    // Hide welcome and suggestions when user starts typing (for paste, voice input, etc.)
+    if(messageInput.value.trim().length > 0){
+      if(!hasStartedTyping){
+        hasStartedTyping = true;
+      }
+      hideWelcomeAndSuggestions();
+    }
+    lastInputMode = 'text';
+    shouldSpeakResponse = false;
+    messageInput.scrollTop = messageInput.scrollHeight;
+  });
+
+  // Settings Modal Functionality
+  const settingsModal = document.getElementById('settingsModal');
+  const closeSettingsBtn = document.getElementById('closeSettings');
+  const settingsNavItems = document.querySelectorAll('.settings-nav-item');
+  const settingsSectionContents = document.querySelectorAll('.settings-section-content');
+  
+  const logoutThisDeviceBtn = document.getElementById('logoutThisDevice');
+  const logoutAllDevicesBtn = document.getElementById('logoutAllDevices');
+  const voicePlayBtn = document.getElementById('voicePlayBtn');
+  const learnMoreLink = document.getElementById('learnMoreLink');
+
+  function openSettingsModal(){
+    settingsModal.classList.add('open');
+    settingsModal.setAttribute('aria-hidden', 'false');
+    // Show General section by default
+    showSettingsSection('general');
+  }
+
+  function closeSettingsModal(){
+    settingsModal.classList.remove('open');
+    settingsModal.setAttribute('aria-hidden', 'true');
+  }
+
+  function showSettingsSection(sectionName){
+    // Hide all sections
+    settingsSectionContents.forEach(section => {
+      section.style.display = 'none';
+    });
+    
+    // Show selected section
+    const targetSection = document.getElementById(`settings${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)}`);
+    if(targetSection){
+      targetSection.style.display = 'block';
+    }
+    
+    // Update nav items
+    settingsNavItems.forEach(item => {
+      if(item.dataset.section === sectionName){
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }
+
+  // Navigation click handlers
+  settingsNavItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const section = item.dataset.section;
+      showSettingsSection(section);
+    });
+  });
+
+  // Close settings modal
+  closeSettingsBtn.addEventListener('click', closeSettingsModal);
+  
+  settingsModal.addEventListener('click', (event) => {
+    if(event.target === settingsModal){
+      closeSettingsModal();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if(event.key === 'Escape' && settingsModal.classList.contains('open')){
+      closeSettingsModal();
+    }
+  });
+
+  
+
+  // Logout buttons
+  logoutThisDeviceBtn.addEventListener('click', () => {
+    if(confirm('Are you sure you want to log out of this device?')){
+      // Don't delete saved chats - just hide them by clearing login state
+      // The getSavedChats() function will return empty array when not logged in
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userEmail');
+      sessionStorage.removeItem('hasShownWelcome');
+      
+      // Clear current chat state
+      currentChatId = null;
+      currentMessages = [];
+      
+      messagesEl.innerHTML = '';
+      appendMessage('You have been logged out of this device. Please sign in again to continue.', 'bot');
+      updateAccountInfo();
+      updateHistoryList();
+      closeSettingsModal();
+      const accountEmailDisplay = document.getElementById('accountEmailDisplay');
+      const builderNameInput = document.getElementById('builderNameInput');
+      const previewAuthorName = document.getElementById('previewAuthorName');
+      if(accountEmailDisplay){ accountEmailDisplay.textContent = ''; }
+      if(builderNameInput){ builderNameInput.value = ''; }
+      if(previewAuthorName){ previewAuthorName.textContent = 'Sumit Kumar'; }
+    }
+  });
+
+  logoutAllDevicesBtn.addEventListener('click', () => {
+    if(confirm('Are you sure you want to log out of all devices? This will end all active sessions.')){
+      // Don't delete saved chats - just hide them by clearing login state
+      // The getSavedChats() function will return empty array when not logged in
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userEmail');
+      sessionStorage.removeItem('hasShownWelcome');
+      
+      // Clear current chat state
+      currentChatId = null;
+      currentMessages = [];
+      
+      messagesEl.innerHTML = '';
+      appendMessage('You have been logged out of all devices. Please sign in again to continue.', 'bot');
+      updateAccountInfo();
+      updateHistoryList();
+      closeSettingsModal();
+      const accountEmailDisplay = document.getElementById('accountEmailDisplay');
+      const builderNameInput = document.getElementById('builderNameInput');
+      const previewAuthorName = document.getElementById('previewAuthorName');
+      if(accountEmailDisplay){ accountEmailDisplay.textContent = ''; }
+      if(builderNameInput){ builderNameInput.value = ''; }
+      if(previewAuthorName){ previewAuthorName.textContent = 'Sumit Kumar'; }
+    }
+  });
+
+  // Voice play button
+  voicePlayBtn.addEventListener('click', () => {
+    const voiceSelect = document.getElementById('voiceSelect');
+    const selectedVoice = voiceSelect.value;
+    voicePlayBtn.textContent = '⏸';
+    voicePlayBtn.disabled = true;
+    
+    // Simulate voice playback
+    setTimeout(() => {
+      voicePlayBtn.textContent = '▶';
+      voicePlayBtn.disabled = false;
+      appendMessage(`Voice sample played: ${selectedVoice}`, 'bot');
+    }, 2000);
+  });
+
+  // Learn more link
+  learnMoreLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    appendMessage('Secure sign in with Althea allows you to use your Althea account to sign in to other websites and apps securely. This feature is coming soon!', 'bot');
+  });
+
+  // Settings dropdowns - save to localStorage
+  const appearanceSelect = document.getElementById('appearanceSelect');
+  const accentColorSelect = document.getElementById('accentColorSelect');
+  const languageSelect = document.getElementById('languageSelect');
+  const spokenLanguageSelect = document.getElementById('spokenLanguageSelect');
+  const voiceSelect = document.getElementById('voiceSelect');
+
+  // Function to apply appearance theme
+  function applyAppearance(theme){
+    const html = document.documentElement;
+    if(theme === 'dark'){
+      html.setAttribute('data-theme', 'dark');
+    } else if(theme === 'light'){
+      html.removeAttribute('data-theme');
+    } else if(theme === 'system'){
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if(prefersDark){
+        html.setAttribute('data-theme', 'dark');
+      } else {
+        html.removeAttribute('data-theme');
+      }
+    }
+  }
+
+  // Function to apply accent color
+  function applyAccentColor(color){
+    const html = document.documentElement;
+    if(color === 'default'){
+      html.removeAttribute('data-accent');
+    } else {
+      html.setAttribute('data-accent', color);
+    }
+  }
+
+  // Load saved preferences and apply them
+  const savedAppearance = localStorage.getItem('appearance') || 'light';
+  appearanceSelect.value = savedAppearance;
+  applyAppearance(savedAppearance);
+  
+  const savedAccentColor = localStorage.getItem('accentColor') || 'default';
+  accentColorSelect.value = savedAccentColor;
+  applyAccentColor(savedAccentColor);
+  
+  if(localStorage.getItem('language')){
+    languageSelect.value = localStorage.getItem('language');
+  }
+  if(localStorage.getItem('spokenLanguage')){
+    spokenLanguageSelect.value = localStorage.getItem('spokenLanguage');
+  }
+  if(localStorage.getItem('voice')){
+    voiceSelect.value = localStorage.getItem('voice');
+  }
+
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    const currentAppearance = localStorage.getItem('appearance');
+    if(currentAppearance === 'system'){
+      applyAppearance('system');
+    }
+  });
+
+  // Save preferences on change
+  appearanceSelect.addEventListener('change', (e) => {
+    const theme = e.target.value;
+    localStorage.setItem('appearance', theme);
+    applyAppearance(theme);
+    appendMessage(`Appearance changed to ${theme}`, 'bot');
+  });
+
+  accentColorSelect.addEventListener('change', (e) => {
+    const color = e.target.value;
+    localStorage.setItem('accentColor', color);
+    applyAccentColor(color);
+    appendMessage(`Accent color changed to ${color}`, 'bot');
+  });
+
+  languageSelect.addEventListener('change', (e) => {
+    localStorage.setItem('language', e.target.value);
+    appendMessage(`Language changed to ${e.target.value}`, 'bot');
+  });
+
+  spokenLanguageSelect.addEventListener('change', (e) => {
+    localStorage.setItem('spokenLanguage', e.target.value);
+    appendMessage(`Spoken language changed to ${e.target.value}`, 'bot');
+  });
+
+  voiceSelect.addEventListener('change', (e) => {
+    localStorage.setItem('voice', e.target.value);
+    appendMessage(`Voice changed to ${e.target.value}`, 'bot');
+  });
+
+  // Data Controls Functionality
+  const improveModelToggle = document.getElementById('improveModelToggle');
+  const improveModelRow = document.getElementById('improveModelRow');
+  const manageSharedLinks = document.getElementById('manageSharedLinks');
+  const manageArchivedChats = document.getElementById('manageArchivedChats');
+  const archiveAllChats = document.getElementById('archiveAllChats');
+  const deleteAllChats = document.getElementById('deleteAllChats');
+  const exportData = document.getElementById('exportData');
+
+  // Load improve model toggle state (default to enabled)
+  const improveModelEnabled = localStorage.getItem('improveModelEnabled');
+  if(improveModelEnabled === 'false'){
+    improveModelToggle.classList.remove('active');
+  } else {
+    improveModelToggle.classList.add('active');
+    if(!improveModelEnabled){
+      localStorage.setItem('improveModelEnabled', 'true');
+    }
+  }
+
+  improveModelToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    improveModelToggle.classList.toggle('active');
+    const isActive = improveModelToggle.classList.contains('active');
+    localStorage.setItem('improveModelEnabled', isActive);
+    appendMessage(`Model improvement ${isActive ? 'enabled' : 'disabled'}`, 'bot');
+  });
+
+  improveModelRow.addEventListener('click', () => {
+    appendMessage('Model improvement settings: This helps improve the AI model by using your conversations for training.', 'bot');
+  });
+
+  manageSharedLinks.addEventListener('click', () => {
+    appendMessage('Shared links management: View and manage all your shared conversation links.', 'bot');
+  });
+
+  manageArchivedChats.addEventListener('click', () => {
+    appendMessage('Archived chats: View and restore your archived conversations.', 'bot');
+  });
+
+  archiveAllChats.addEventListener('click', () => {
+    if(confirm('Are you sure you want to archive all chats? You can restore them later from archived chats.')){
+      appendMessage('All chats have been archived successfully.', 'bot');
+    }
+  });
+
+  deleteAllChats.addEventListener('click', () => {
+    if(confirm('Are you sure you want to delete all chats? This action cannot be undone.')){
+      messagesEl.innerHTML = '';
+      appendMessage('All chats have been deleted.', 'bot');
+    }
+  });
+
+  exportData.addEventListener('click', () => {
+    appendMessage('Exporting your data... This may take a few moments. You will receive a download link when ready.', 'bot');
+    // Simulate export
+    setTimeout(() => {
+      appendMessage('Data export complete! Your data has been prepared for download.', 'bot');
+    }, 1500);
+  });
+
+  // Account Section Functionality
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+  const nameToggle = document.getElementById('nameToggle');
+  const builderNameInput = document.getElementById('builderNameInput');
+  const previewName = document.getElementById('previewName');
+  const previewAuthorName = document.getElementById('previewAuthorName');
+  const accountEmailDisplay = document.getElementById('accountEmailDisplay');
+
+  // Load saved account data
+  const savedBuilderName = localStorage.getItem('builderName');
+  const savedUserEmail = localStorage.getItem('userEmail') || 'sumisuzi2005@gmail.com';
+  if(savedBuilderName){
+    builderNameInput.value = savedBuilderName;
+    previewAuthorName.textContent = savedBuilderName;
+  } else {
+    const userName = localStorage.getItem('userName');
+    if(userName){
+      builderNameInput.value = userName;
+      previewAuthorName.textContent = userName;
+    }
+  }
+  accountEmailDisplay.textContent = savedUserEmail;
+
+  // Name toggle
+  nameToggle.addEventListener('click', () => {
+    nameToggle.classList.toggle('active');
+    const isActive = nameToggle.classList.contains('active');
+    builderNameInput.disabled = !isActive;
+    appendMessage(`Name visibility ${isActive ? 'enabled' : 'disabled'}`, 'bot');
+  });
+
+  // Builder name input
+  builderNameInput.addEventListener('input', (e) => {
+    const name = e.target.value;
+    localStorage.setItem('builderName', name);
+    previewAuthorName.textContent = name || 'Sumit Kumar';
+  });
+
+  builderNameInput.addEventListener('blur', () => {
+    appendMessage('Builder name updated successfully.', 'bot');
+  });
+
+  // Delete account
+  deleteAccountBtn.addEventListener('click', () => {
+    if(confirm('Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.')){
+      if(confirm('This is your final warning. All data will be lost. Are you absolutely sure?')){
+        localStorage.clear();
+        sessionStorage.clear();
+        messagesEl.innerHTML = '';
+        appendMessage('Your account has been deleted. Please refresh the page.', 'bot');
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
+    }
+  });
+
+  
+
+  // Function to show welcome message without name (for non-logged-in users)
+  function showWelcomeMessageGuest(){
+    messagesEl.innerHTML = '';
+    messagesEl.classList.add('centered');
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.className = 'msg welcome-msg';
+    welcomeDiv.innerHTML = `
+      <div>Welcome to Althea!</div>
+      <div class="welcome-name"></div>
+      <div class="welcome-subtitle">I'm here to support you on your wellness journey. How can I help you today?</div>
+    `;
+    messagesEl.appendChild(welcomeDiv);
+    
+    // Add quick suggestions
+    const suggestionsDiv = document.createElement('div');
+    suggestionsDiv.className = 'quick-suggestions';
+    suggestionsDiv.id = 'quickSuggestions';
+    suggestionsDiv.innerHTML = `
+      <div class="quick-suggestions-title">Quick suggestions:</div>
+      <div class="quick-suggestions-list">
+        <button class="quick-suggestion-btn" data-suggestion="I'm feeling sad">I'm feeling sad</button>
+        <button class="quick-suggestion-btn" data-suggestion="I'm anxious">I'm anxious</button>
+        <button class="quick-suggestion-btn" data-suggestion="I'm having anxiety">I'm having anxiety</button>
+        <button class="quick-suggestion-btn" data-suggestion="I'm feeling stressed">I'm feeling stressed</button>
+      </div>
+    `;
+    messagesEl.appendChild(suggestionsDiv);
+    
+    // Add event listeners to suggestion buttons
+    const suggestionButtons = suggestionsDiv.querySelectorAll('.quick-suggestion-btn');
+    suggestionButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const suggestionText = btn.getAttribute('data-suggestion');
+        // Remove welcome message and suggestions
+        messagesEl.classList.remove('centered');
+        welcomeDiv.remove();
+        suggestionsDiv.remove();
+        // Start conversation with the suggestion
+        appendMessage(suggestionText, 'me');
+        // Trigger bot response
+        setTimeout(() => {
+          appendMessage('Thanks for sharing — I hear you. Would you like a breathing exercise or a quick grounding technique?', 'bot');
+        }, 800 + Math.random() * 800);
+      });
+    });
+    
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Initialize: Show welcome message on page load if user is logged in
+  (function init(){
+    // Set sidebar to collapsed by default
+    leftRail.classList.add('collapsed');
+    container.classList.add('collapsed');
+    toggleSidebar.setAttribute('aria-expanded', 'false');
+    toggleSidebar.setAttribute('aria-label', 'Expand sidebar');
+    toggleSidebar.setAttribute('title', 'Expand sidebar');
+    
+    // Initialize chat history
+    updateHistoryList();
+    
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userName = localStorage.getItem('userName');
+    
+    if(isLoggedIn === 'true' && userName){
+      showWelcomeMessage(userName);
+    } else {
+      // Show welcome message with suggestions for guests
+      showWelcomeMessageGuest();
+    }
+    setTimeout(openSurveyCard, 2500);
+    loadExistingMessages();
+  })();
+</script>
+</body>
+</html>

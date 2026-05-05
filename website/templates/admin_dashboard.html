@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+  <div>
+    <h2 class="mb-1">Admin dashboard</h2>
+    <p class="text-muted mb-0">Monitor user accounts, chat activity, and banned profiles.</p>
+  </div>
+  <a href="{{ url_for('views.chat') }}" class="btn btn-primary">Open Althea</a>
+</div>
+
+<div class="row">
+  <div class="col-md-3">
+    <div class="card text-center mb-3 shadow-sm">
+      <div class="card-body">
+        <h4>{{ stats.total_users }}</h4>
+        <p class="text-muted mb-0">Users</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center mb-3 shadow-sm">
+      <div class="card-body">
+        <h4>{{ stats.active_chats }}</h4>
+        <p class="text-muted mb-0">Active sessions</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center mb-3 shadow-sm">
+      <div class="card-body">
+        <h4>{{ stats.total_messages }}</h4>
+        <p class="text-muted mb-0">Messages logged</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center mb-3 shadow-sm">
+      <div class="card-body">
+        <h4>{{ stats.banned_users }}</h4>
+        <p class="text-muted mb-0">Banned users</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h4 class="card-title">User directory</h4>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle">
+        <thead>
+          <tr>
+            <th scope="col">Username</th>
+            <th scope="col">Email</th>
+            <th scope="col">Status</th>
+            <th scope="col">Created</th>
+            <th scope="col" class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>{{ u.display_name() }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              {% if u.is_banned %}
+              <span class="badge badge-danger">Banned</span>
+              {% else %}
+              <span class="badge badge-success">Active</span>
+              {% endif %}
+              {% if u.is_admin %}
+              <span class="badge badge-info ml-1">Admin</span>
+              {% endif %}
+            </td>
+            <td>{{ u.created_at.strftime('%b %d, %Y') if u.created_at }}</td>
+            <td class="text-right">
+              {% if u.id != current_user.id %}
+                {% if u.is_banned %}
+                  <button class="btn btn-sm btn-outline-success btn-toggle-ban" data-user-id="{{ u.id }}" data-action="unban">Unban</button>
+                {% else %}
+                  <button class="btn btn-sm btn-outline-danger btn-toggle-ban" data-user-id="{{ u.id }}" data-action="ban">Ban</button>
+                {% endif %}
+              {% else %}
+              <span class="text-muted small">You</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h4 class="card-title">Banned users</h4>
+    {% if banned_users %}
+    <ul class="list-group">
+      {% for user in banned_users %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ user.display_name() }}</strong> · {{ user.email }}
+          <div class="small text-muted">
+            Reason: {{ user.ban_reason or 'Not provided' }} •
+            {{ user.banned_at.strftime('%b %d, %Y %I:%M %p') if user.banned_at }}
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-success btn-toggle-ban" data-user-id="{{ user.id }}" data-action="unban">
+          Reinstate
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="alert alert-secondary mb-0">
+      No one is banned right now.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h4 class="card-title">Recent chat sessions</h4>
+    {% if sessions %}
+    <div class="table-responsive">
+      <table class="table table-borderless">
+        <thead>
+          <tr>
+            <th scope="col">Session</th>
+            <th scope="col">User</th>
+            <th scope="col">Last preview</th>
+            <th scope="col">Updated</th>
+            <th scope="col" class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for session in sessions %}
+          <tr>
+            <td>{{ session.title }}</td>
+            <td>
+              {% set owner = users | selectattr('id', 'equalto', session.user_id) | list | first %}
+              {{ owner.display_name() if owner }}
+            </td>
+            <td>{{ session.last_preview or 'No messages' }}</td>
+            <td>{{ session.updated_at.strftime('%b %d, %Y • %I:%M %p') if session.updated_at }}</td>
+            <td class="text-right">
+              <a href="{{ url_for('views.admin_chat_detail', session_id=session.id) }}" class="btn btn-sm btn-outline-secondary">Open</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-0">
+      No chat sessions have been recorded yet.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+{{ super() }}
+<script>
+  async function toggleBan(userId, action) {
+    const reason = action === 'ban'
+      ? prompt('Provide a reason for banning this user:', 'Manual moderation')
+      : undefined;
+
+    if (action === 'ban' && reason === null) {
+      return; // user cancelled
+    }
+
+    const response = await fetch(`/admin/users/${userId}/toggle-ban`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, reason }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      alert(payload.error || 'Failed to update user.');
+      return;
+    }
+
+    window.location.reload();
+  }
+
+  // Event delegation for ban/unban buttons
+  document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.classList.contains('btn-toggle-ban')) {
+        const userId = parseInt(e.target.getAttribute('data-user-id'), 10);
+        const action = e.target.getAttribute('data-action');
+        if (userId && action) {
+          toggleBan(userId, action);
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}
+

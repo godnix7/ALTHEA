@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GAD-9 Survey • One-by-one + Step Result</title>
+<style>
+  :root{
+    --bg:#f6fff6;
+    --panel:#ffffff;
+    --card:#ffffff;
+    --muted:#4a5568;
+    --text:#1a202c;
+    --brand:#7c5cff;
+    --brand-2:#00c2ff;
+    --ok:#16a34a;
+    --warn:#f97316;
+    --bad:#dc2626;
+    --radius:18px;
+  }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{
+    margin:0;
+    background:linear-gradient(135deg, #f6fff6 0%, #e3f7e8 60%);
+    color:var(--text);
+    font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    display:grid; place-items:center; padding:24px;
+  }
+  .app{width:min(980px,96vw)}
+  .card{
+    background:rgba(255,255,255,0.92);
+    border:1px solid rgba(15,47,31,0.12);
+    border-radius:var(--radius);
+    box-shadow:0 18px 34px rgba(15,47,31,0.12);
+    backdrop-filter:blur(10px);
+  }
+  .header{padding:18px 22px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid rgba(15,47,31,0.1)}
+  .brand{display:flex; align-items:center; gap:10px}
+  .brand .logo{height:28px; width:28px; border-radius:8px; background:conic-gradient(from .25turn, var(--brand), var(--brand-2))}
+  .brand h1{margin:0; font-size:16px; letter-spacing:.3px; color:var(--text)}
+  .pill{font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid rgba(15,47,31,0.12); color:var(--muted); background:rgba(255,255,255,0.7)}
+  .content{padding:20px; display:grid; gap:16px}
+  .hidden{display:none !important}
+  .muted{color:var(--muted)}
+  .progress-wrap{position:sticky; top:10px; z-index:3; background:rgba(255,255,255,0.9);
+    border:1px solid rgba(15,47,31,0.12); backdrop-filter:blur(6px); border-radius:14px; padding:10px}
+  .progress{height:12px; background:rgba(15,47,31,0.08); border:1px solid rgba(15,47,31,0.12); border-radius:999px; overflow:hidden}
+  .bar{height:100%; width:0%; background:linear-gradient(90deg,var(--brand),var(--brand-2));
+    transition:width .6s cubic-bezier(.2,.9,.2,1), filter .6s; filter:drop-shadow(0 0 10px rgba(99,102,241,.45))}
+  .pct{font-variant-numeric:tabular-nums; font-weight:600}
+  .qcard,.rcard{background:var(--card); border:1px solid rgba(15,47,31,0.12); border-radius:14px; padding:18px; min-height:170px; box-shadow:0 12px 26px rgba(15,47,31,0.08)}
+  .qtitle{margin:0 0 12px; font-size:17px}
+  .opts{display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px}
+  .radio{display:flex; align-items:center; gap:10px; padding:12px; border-radius:12px; cursor:pointer;
+         background:#f1f5f9; border:1px solid rgba(15,47,31,0.12)}
+  .radio:hover{background:#e2f6ea}
+  .radio input{accent-color:var(--brand)}
+  .actions{display:flex; justify-content:space-between; gap:10px; margin-top:12px}
+  button{appearance:none; font:inherit; color:var(--text); padding:12px 16px; border-radius:12px; border:1px solid rgba(15,47,31,0.12); background:#ffffff; cursor:pointer; transition:box-shadow .2s, transform .2s}
+  button:hover{box-shadow:0 8px 16px rgba(15,47,31,0.12); transform:translateY(-1px)}
+  .btn{background:linear-gradient(90deg,var(--brand),var(--brand-2)); border:none; font-weight:600; color:#ffffff; box-shadow:0 10px 24px rgba(124,92,255,0.18)}
+  .btn[disabled]{opacity:.5; cursor:not-allowed}
+  .ghost{background:transparent}
+  .badge{display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid rgba(15,47,31,0.12)}
+  .safe{color:#065f46; background:#bbf7d0}
+  .mild{background:#fef3c7; color:#92400e}
+  .mod{background:#fecaca; color:#7f1d1d}
+  .sev{background:#f87171; color:#fff}
+  .crisis{background:#fef2f2; border:1px solid rgba(220,38,38,0.3); padding:10px; border-radius:12px; color:#7f1d1d; font-size:14px}
+  .stage{position:relative; min-height:260px}
+  .slide{position:absolute; inset:0; opacity:0; transform:translateX(30px); pointer-events:none}
+  .slide.active{opacity:1; transform:translateX(0); pointer-events:auto}
+  .slide.enter{animation:enter .38s cubic-bezier(.2,.9,.2,1) forwards}
+  .slide.leave{animation:leave .28s ease forwards}
+  @keyframes enter{from{opacity:0; transform:translateX(28px)} to{opacity:1; transform:translateX(0)}}
+  @keyframes leave{from{opacity:1; transform:translateX(0)} to{opacity:0; transform:translateX(-28px)}}
+  @media (max-width:680px){ .opts{grid-template-columns: 1fr} }
+</style>
+</head>
+<body>
+  <div class="app card" role="application" aria-label="GAD-9 Survey Application">
+    <header class="header">
+      <div class="brand"><div class="logo" aria-hidden="true"></div><h1>GAD-9 Survey</h1></div>
+      <span class="pill" id="clock">—</span>
+    </header>
+    <section class="content">
+      <div class="progress-wrap" aria-live="polite">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px">
+          <strong>GAD-9 — one question at a time</strong>
+          <span><span class="pct" id="pct">0%</span> complete</span>
+        </div>
+        <div class="progress" aria-hidden="true"><div class="bar" id="bar"></div></div>
+      </div>
+      <p class="muted">Think about the <strong>last 2 weeks</strong>. Select one option for each question.</p>
+      <div class="stage" id="stage"></div>
+      <div class="actions">
+        <button id="backBtn" class="ghost" type="button">← Back</button>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button id="resetBtn" class="ghost" type="button" title="Clear responses">Reset</button>
+          <button id="nextBtn" class="btn" type="button" disabled>Next →</button>
+          <button id="finishBtn" class="btn hidden" type="button">Finish & See Result</button>
+          <button id="resultNextBtn" class="btn hidden" type="button">Next result →</button>
+          <button id="continueBtn" class="btn hidden" type="button">Continue to Althea</button>
+        </div>
+      </div>
+      <div class="crisis">
+        If you’re in immediate crisis, call your local emergency number. In India: <strong>112</strong> (emergency) or <strong>9152987821</strong> (Suicide & Self-Harm helpline).
+      </div>
+    </section>
+  </div>
+<script>
+  const submitEndpoint = "{{ url_for('views.gad9_result') }}";
+  const chatUrl = "{{ url_for('views.chat') }}";
+  const clockEl = document.getElementById('clock');
+  const clock = () => clockEl.textContent = new Date().toLocaleString();
+  setInterval(clock, 1000); clock();
+  const OPTIONS = [
+    {v:0, t:'Not at all'},
+    {v:1, t:'Several days'},
+    {v:2, t:'More than half the days'},
+    {v:3, t:'Nearly every day'}
+  ];
+  const QUESTIONS = [
+    'Feeling nervous, anxious, or on edge',
+    'Not being able to stop or control worrying',
+    'Worrying too much about different things',
+    'Trouble relaxing',
+    'Being so restless that it is hard to sit still',
+    'Becoming easily annoyed or irritable',
+    'Feeling afraid as if something awful might happen',
+    'Difficulty concentrating because of anxiety',
+    'Physical symptoms (e.g., muscle tension, headaches) related to anxiety'
+  ];
+  const stage         = document.getElementById('stage');
+  const bar           = document.getElementById('bar');
+  const pct           = document.getElementById('pct');
+  const nextBtn       = document.getElementById('nextBtn');
+  const backBtn       = document.getElementById('backBtn');
+  const resetBtn      = document.getElementById('resetBtn');
+  const finishBtn     = document.getElementById('finishBtn');
+  const resultNextBtn = document.getElementById('resultNextBtn');
+  const continueBtn   = document.getElementById('continueBtn');
+  let qIdx = 0;
+  const answers = new Array(QUESTIONS.length).fill(null);
+  let resultMode = false;
+  let resultIdx = 0;
+  let total = 0, level='Minimal', cls='safe';
+  let saving = false;
+  function renderQuestion(i, direction='forward'){
+    stage.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'slide active enter';
+    const qCard = document.createElement('div');
+    qCard.className = 'qcard';
+    qCard.innerHTML = `
+      <h3 class="qtitle"><span style="opacity:.8;font-weight:600">${i+1}.</span> ${QUESTIONS[i]}</h3>
+      <div class="opts" role="radiogroup" aria-label="Question ${i+1}">
+        ${OPTIONS.map(o=>`
+          <label class="radio">
+            <input type="radio" name="q" value="${o.v}" ${answers[i]===o.v?'checked':''}/>
+            <span>${o.t}</span>
+          </label>
+        `).join('')}
+      </div>
+      <p class="muted" style="margin-top:10px">${i+1} of ${QUESTIONS.length}</p>
+    `;
+    wrap.appendChild(qCard);
+    stage.appendChild(wrap);
+    nextBtn.disabled = (answers[i] === null);
+    backBtn.disabled = (i === 0);
+    nextBtn.classList.toggle('hidden', i === QUESTIONS.length-1);
+    finishBtn.classList.toggle('hidden', i !== QUESTIONS.length-1);
+    resultNextBtn.classList.add('hidden');
+    continueBtn.classList.add('hidden');
+    if (direction==='back'){
+      wrap.classList.remove('enter');
+      wrap.style.animation = 'enter .38s cubic-bezier(.2,.9,.2,1) forwards';
+    }
+    wrap.querySelector('.opts').addEventListener('change', (e)=>{
+      answers[i] = Number(e.target.value);
+      nextBtn.disabled = false;
+      updateProgress();
+    });
+  }
+  function updateProgress(){
+    const answered = answers.filter(v => v !== null).length;
+    const pctVal = Math.round((answered / QUESTIONS.length) * 100);
+    bar.style.width = pctVal + '%';
+    pct.textContent = pctVal + '%';
+  }
+  function goNext(){
+    if (answers[qIdx] === null) return;
+    if (qIdx < QUESTIONS.length-1){
+      leaveThen(()=> { qIdx++; renderQuestion(qIdx, 'forward'); });
+    }
+  }
+  function goBack(){
+    if (resultMode){
+      exitResultMode(true);
+      return;
+    }
+    if (qIdx > 0){
+      leaveThen(()=> { qIdx--; renderQuestion(qIdx,'back'); });
+    }
+  }
+  function leaveThen(fn){
+    const current = stage.firstElementChild;
+    if (current){ current.classList.remove('enter'); current.classList.add('leave'); }
+    setTimeout(fn, 220);
+  }
+  function enterResultMode(){
+    resultMode = true;
+    total = answers.reduce((a,b)=>a+b,0);
+    if (total<=4){ level='Minimal'; cls='safe'; }
+    else if (total<=9){ level='Mild'; cls='mild'; }
+    else if (total<=14){ level='Moderate'; cls='mod'; }
+    else { level='Severe'; cls='sev'; }
+    resultIdx = 0;
+    try{
+      localStorage.setItem('gad9_result', JSON.stringify({ score: total, level: level, timestamp: new Date().toISOString() }));
+    }catch(e){
+      console.warn('localStorage unavailable:', e);
+    }
+    backBtn.disabled = false;
+    nextBtn.classList.add('hidden');
+    finishBtn.classList.add('hidden');
+    resultNextBtn.classList.add('hidden');
+    continueBtn.classList.remove('hidden');
+    renderResultSlide(resultIdx);
+  }
+  function renderResultSlide(i){
+    stage.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'slide active enter';
+    const card = document.createElement('div');
+    card.className = 'rcard';
+    if (i === 0){
+      card.innerHTML = `
+        <h3 class="qtitle">Your score</h3>
+        <p><span class="badge ${cls}">${level} (score ${total} / 27)</span></p>
+        <p class="muted">This is a self-report screening, not a diagnosis.</p>
+      `;
+    } else if (i === 1){
+      const note = (level==='Minimal') ? 'Your responses suggest minimal anxiety.'
+                 : (level==='Mild')     ? 'Mild symptoms — consider self-care and monitoring.'
+                 : (level==='Moderate') ? 'Moderate symptoms — consider speaking with a professional.'
+                 : 'Severe symptoms — professional support is recommended.';
+      card.innerHTML = `
+        <h3 class="qtitle">What it means</h3>
+        <p>${note}</p>
+        <ul class="muted" style="margin:0; padding-left:18px">
+          <li>Try sleep, movement, and breathing routines.</li>
+          <li>Reach out to someone you trust.</li>
+          <li>If you feel unsafe, use local emergency resources.</li>
+        </ul>
+      `;
+    } else if (i === 2){
+      card.innerHTML = `
+        <h3 class="qtitle">Your answers</h3>
+        <ol style="margin:0; padding-left:18px">
+          ${answers.map((v,ix)=>`<li style="margin:6px 0">${QUESTIONS[ix]} — <strong>${v}</strong></li>`).join('')}
+        </ol>
+      `;
+    } else if (i === 3){
+      card.innerHTML = `
+        <h3 class="qtitle">Next step</h3>
+        <p class="muted">Would you like to continue and chat with our support bot?</p>
+        <div style="margin-top:12px">
+          <a id="chatLink" href="{{ url_for('views.chat') }}" target="_self"
+             style="display:inline-block; padding:10px 18px; background:var(--brand); color:white; border-radius:10px; text-decoration:none; font-weight:600;">
+             Continue to Althea
+          </a>
+        </div>
+      `;
+      setTimeout(() => {
+        const l = document.getElementById('chatLink');
+        if (l){
+          l.addEventListener('click', (e) => {
+            if (!location.href) return;
+          });
+        }
+      }, 0);
+    }
+    wrap.appendChild(card);
+    stage.appendChild(wrap);
+    continueBtn.classList.toggle('hidden', false);
+  }
+  function nextResult(){ return; }
+  function exitResultMode(goBackToLastQuestion){
+    resultMode = false;
+    resultIdx = 0;
+    resultNextBtn.classList.add('hidden');
+    continueBtn.classList.add('hidden');
+    nextBtn.classList.toggle('hidden', qIdx === QUESTIONS.length-1);
+    finishBtn.classList.toggle('hidden', qIdx !== QUESTIONS.length-1);
+    if (goBackToLastQuestion){
+      renderQuestion(qIdx, 'back');
+    }
+  }
+  function onFinish(){
+    if (answers.some(v=>v===null)){
+      alert('Please answer all questions before finishing.');
+      return;
+    }
+    enterResultMode();
+  }
+  function resetAll(){
+    for (let i=0;i<answers.length;i++) answers[i]=null;
+    qIdx = 0;
+    resultMode = false; resultIdx = 0;
+    resultNextBtn.classList.add('hidden');
+    continueBtn.classList.add('hidden');
+    nextBtn.classList.remove('hidden');
+    finishBtn.classList.add('hidden');
+    updateProgress();
+    renderQuestion(qIdx);
+  }
+  nextBtn.addEventListener('click', goNext);
+  backBtn.addEventListener('click', goBack);
+  finishBtn.addEventListener('click', onFinish);
+  resultNextBtn.addEventListener('click', nextResult);
+  resetBtn.addEventListener('click', resetAll);
+  async function persistResult() {
+    if (saving) return;
+    saving = true;
+    continueBtn.disabled = true;
+    const originalText = continueBtn.textContent;
+    continueBtn.textContent = 'Saving...';
+
+    try {
+      await fetch(submitEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          score: total,
+          level,
+          answers,
+        }),
+      }).then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to save');
+        }
+        return response.json();
+      });
+
+      try {
+        sessionStorage.setItem('gad9_prompt_dismissed', '1');
+      } catch (e) {
+        // ignore
+      }
+
+      window.location.href = chatUrl;
+      window.location.href = chatUrl;
+    } catch (error) {
+      alert('Could not save your result. Please check your connection and try again.');
+      saving = false;
+      continueBtn.disabled = false;
+      continueBtn.textContent = originalText;
+    }
+  }
+
+  continueBtn.addEventListener('click', persistResult);
+  document.addEventListener('keydown', (e)=>{
+    if (resultMode){
+      if (e.key==='ArrowLeft') goBack();
+      return;
+    }
+    if (e.key==='ArrowRight' && !nextBtn.disabled && !nextBtn.classList.contains('hidden')) goNext();
+    if (e.key==='ArrowLeft' && !backBtn.disabled) goBack();
+  });
+  updateProgress(); renderQuestion(qIdx);
+</script>
+</body>
+</html>
